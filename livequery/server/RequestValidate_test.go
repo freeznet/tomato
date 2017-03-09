@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	tp "github.com/lfq7413/tomato/livequery/t"
+	tp "github.com/freeznet/tomato/livequery/t"
 )
 
 func Test_validateGeneral(t *testing.T) {

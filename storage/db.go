@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/test"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/test"
 	"gopkg.in/mgo.v2"
 )
 

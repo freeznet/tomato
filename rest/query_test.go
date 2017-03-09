@@ -4,14 +4,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lfq7413/tomato/cache"
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/storage"
-	"github.com/lfq7413/tomato/storage/mongo"
-	"github.com/lfq7413/tomato/test"
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/cache"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/storage"
+	"github.com/freeznet/tomato/storage/mongo"
+	"github.com/freeznet/tomato/test"
+	"github.com/freeznet/tomato/types"
 )
 
 func Test_Execute(t *testing.T) {

@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/rest"
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/rest"
+	"github.com/freeznet/tomato/types"
 )
 
 // ResetController 处理 /requestPasswordReset 接口的请求

@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/types"
 )
 
 func Test_FileAdapter(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/astaxie/beego/utils"
-	"github.com/lfq7413/tomato/config"
+	"github.com/freeznet/tomato/config"
 )
 
 // fileSystemAdapter 本地文件存储模块

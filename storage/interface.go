@@ -1,6 +1,6 @@
 package storage
 
-import "github.com/lfq7413/tomato/types"
+import "github.com/freeznet/tomato/types"
 
 // Adapter 数据库操作适配器接口
 type Adapter interface {

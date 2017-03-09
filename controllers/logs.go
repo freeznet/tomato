@@ -3,7 +3,7 @@ package controllers
 import (
 	"fmt"
 
-	"github.com/lfq7413/tomato/logger"
+	"github.com/freeznet/tomato/logger"
 )
 
 // LogsController ...

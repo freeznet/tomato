@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/types"
 )
 
 func TestE(t *testing.T) {

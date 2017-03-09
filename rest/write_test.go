@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lfq7413/tomato/cache"
-	"github.com/lfq7413/tomato/cloud"
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/livequery"
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/cache"
+	"github.com/freeznet/tomato/cloud"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/livequery"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 func Test_NewWrite(t *testing.T) {

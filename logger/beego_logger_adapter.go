@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/astaxie/beego/logs"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/types"
 )
 
 type beegoLogger struct {

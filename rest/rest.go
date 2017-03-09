@@ -1,11 +1,11 @@
 package rest
 
 import (
-	"github.com/lfq7413/tomato/cloud"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/livequery"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/cloud"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/livequery"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // Find 根据条件查找数据

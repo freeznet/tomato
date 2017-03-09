@@ -5,11 +5,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lfq7413/tomato/cache"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/storage"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/cache"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/storage"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // clpValidKeys 类级别的权限 列表

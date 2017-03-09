@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/types"
 )
 
 func TestOAuth_Get(t *testing.T) {

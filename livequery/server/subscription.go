@@ -1,6 +1,6 @@
 package server
 
-import "github.com/lfq7413/tomato/livequery/t"
+import "github.com/freeznet/tomato/livequery/t"
 
 // SubscriptionInfo 订阅对象信息
 // 每一个客户端请求对应一个对象

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/errs"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/errs"
 	"qiniupkg.com/api.v7/conf"
 	"qiniupkg.com/api.v7/kodo"
 	"qiniupkg.com/api.v7/kodocli"

@@ -3,7 +3,7 @@ package errs
 import (
 	"strconv"
 
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/types"
 )
 
 // TomatoError ...

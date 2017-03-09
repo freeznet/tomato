@@ -3,10 +3,10 @@ package rest
 import (
 	"time"
 
-	"github.com/lfq7413/tomato/cache"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/cache"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // Auth 保存当前请求的用户权限信息
