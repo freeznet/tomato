@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -10,12 +9,12 @@ import (
 	"github.com/lfq7413/tomato/errs"
 	"github.com/lfq7413/tomato/orm"
 	"github.com/lfq7413/tomato/storage"
-	"github.com/lfq7413/tomato/storage/mongo"
+	"github.com/lfq7413/tomato/storage/postgres"
 	"github.com/lfq7413/tomato/test"
 	"github.com/lfq7413/tomato/types"
 )
 
-func Test_Execute(t *testing.T) {
+func TestPostgres_Execute(t *testing.T) {
 	var schema types.M
 	var object types.M
 	var where types.M
@@ -26,24 +25,25 @@ func Test_Execute(t *testing.T) {
 	var result types.M
 	var expect types.M
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	className = "user"
 	where = types.M{}
 	options = types.M{}
@@ -66,11 +66,12 @@ func Test_Execute(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "list"
 	schema = types.M{
 		"fields": types.M{
-			"title": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
 			"post": types.M{
 				"type":        "Pointer",
 				"targetClass": "post",
@@ -84,7 +85,7 @@ func Test_Execute(t *testing.T) {
 		"post": types.M{
 			"__type":    "Pointer",
 			"className": "post",
-			"objectId":  "2001",
+			"objectId":  "123456789012345678902001",
 		},
 	}
 	orm.Adapter.CreateObject(className, schema, object)
@@ -94,14 +95,15 @@ func Test_Execute(t *testing.T) {
 		"post": types.M{
 			"__type":    "Pointer",
 			"className": "post",
-			"objectId":  "2002",
+			"objectId":  "123456789012345678902002",
 		},
 	}
 	orm.Adapter.CreateObject(className, schema, object)
 	className = "post"
 	schema = types.M{
 		"fields": types.M{
-			"id": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"id":       types.M{"type": "String"},
 			"user": types.M{
 				"type":        "Pointer",
 				"targetClass": "user",
@@ -110,39 +112,40 @@ func Test_Execute(t *testing.T) {
 	}
 	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
-		"objectId": "2001",
+		"objectId": "123456789012345678902001",
 		"id":       "01",
 		"user": types.M{
 			"__type":    "Pointer",
 			"className": "user",
-			"objectId":  "3001",
+			"objectId":  "123456789012345678903001",
 		},
 	}
 	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
-		"objectId": "2002",
+		"objectId": "123456789012345678902002",
 		"id":       "02",
 		"user": types.M{
 			"__type":    "Pointer",
 			"className": "user",
-			"objectId":  "3002",
+			"objectId":  "123456789012345678903002",
 		},
 	}
 	orm.Adapter.CreateObject(className, schema, object)
 	className = "user"
 	schema = types.M{
 		"fields": types.M{
-			"name": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"name":     types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
-		"objectId": "3001",
+		"objectId": "123456789012345678903001",
 		"name":     "joe",
 	}
 	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
-		"objectId": "3002",
+		"objectId": "123456789012345678903002",
 		"name":     "jack",
 	}
 	orm.Adapter.CreateObject(className, schema, object)
@@ -159,12 +162,12 @@ func Test_Execute(t *testing.T) {
 				"post": types.M{
 					"__type":    "Object",
 					"className": "post",
-					"objectId":  "2001",
+					"objectId":  "123456789012345678902001",
 					"id":        "01",
 					"user": types.M{
 						"__type":    "Object",
 						"className": "user",
-						"objectId":  "3001",
+						"objectId":  "123456789012345678903001",
 						"name":      "joe",
 					},
 				},
@@ -175,12 +178,12 @@ func Test_Execute(t *testing.T) {
 				"post": types.M{
 					"__type":    "Object",
 					"className": "post",
-					"objectId":  "2002",
+					"objectId":  "123456789012345678902002",
 					"id":        "02",
 					"user": types.M{
 						"__type":    "Object",
 						"className": "user",
-						"objectId":  "3002",
+						"objectId":  "123456789012345678903002",
 						"name":      "jack",
 					},
 				},
@@ -193,7 +196,7 @@ func Test_Execute(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_BuildRestWhere(t *testing.T) {
+func TestPostgres_BuildRestWhere(t *testing.T) {
 	var className string
 	var schema types.M
 	var object types.M
@@ -202,12 +205,13 @@ func Test_BuildRestWhere(t *testing.T) {
 	var err error
 	var expect types.M
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Team"
 	schema = types.M{
 		"fields": types.M{
-			"city":   types.M{"type": "String"},
-			"winPct": types.M{"type": "Number"},
+			"objectId": types.M{"type": "String"},
+			"city":     types.M{"type": "String"},
+			"winPct":   types.M{"type": "Number"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -232,8 +236,9 @@ func Test_BuildRestWhere(t *testing.T) {
 	className = "Post"
 	schema = types.M{
 		"fields": types.M{
-			"title": types.M{"type": "String"},
-			"image": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
+			"image":    types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -302,7 +307,7 @@ func Test_BuildRestWhere(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_getUserAndRoleACL(t *testing.T) {
+func TestPostgres_getUserAndRoleACL(t *testing.T) {
 	var schema types.M
 	var object types.M
 	var className string
@@ -325,13 +330,14 @@ func Test_getUserAndRoleACL(t *testing.T) {
 	}
 	/**********************************************************/
 	cache.InitCache()
-	initEnv()
+	initPostgresEnv()
 	className = "_Role"
 	schema = types.M{
 		"fields": types.M{
-			"name":  types.M{"type": "String"},
-			"users": types.M{"type": "Relation", "targetClass": "_User"},
-			"roles": types.M{"type": "Relation", "targetClass": "_Role"},
+			"objectId": types.M{"type": "String"},
+			"name":     types.M{"type": "String"},
+			"users":    types.M{"type": "Relation", "targetClass": "_User"},
+			"roles":    types.M{"type": "Relation", "targetClass": "_Role"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -354,7 +360,6 @@ func Test_getUserAndRoleACL(t *testing.T) {
 	}
 	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
-		"objectId":  "5001",
 		"owningId":  "1002",
 		"relatedId": "1001",
 	}
@@ -368,7 +373,6 @@ func Test_getUserAndRoleACL(t *testing.T) {
 	}
 	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
-		"objectId":  "5002",
 		"owningId":  "1001",
 		"relatedId": "9001",
 	}
@@ -390,7 +394,7 @@ func Test_getUserAndRoleACL(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_redirectClassNameForKey(t *testing.T) {
+func TestPostgres_redirectClassNameForKey(t *testing.T) {
 	var options types.M
 	var q *Query
 	var object types.M
@@ -402,7 +406,7 @@ func Test_redirectClassNameForKey(t *testing.T) {
 		t.Error("expect: empty result:", q.redirectKey, q.redirectClassName, q.className)
 	}
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	options = types.M{"redirectClassNameForKey": "post"}
 	q, _ = NewQuery(nil, "user", nil, options, nil)
 	q.redirectClassNameForKey()
@@ -411,7 +415,7 @@ func Test_redirectClassNameForKey(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	object = types.M{
 		"fields": types.M{
 			"post": types.M{"type": "String"},
@@ -426,7 +430,7 @@ func Test_redirectClassNameForKey(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	object = types.M{
 		"fields": types.M{
 			"post": types.M{
@@ -445,7 +449,7 @@ func Test_redirectClassNameForKey(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_validateClientClassCreation(t *testing.T) {
+func TestPostgres_validateClientClassCreation(t *testing.T) {
 	var className string
 	var q *Query
 	var result error
@@ -478,7 +482,7 @@ func Test_validateClientClassCreation(t *testing.T) {
 		t.Error("expect:", expect, "result:", result)
 	}
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	object := types.M{
 		"fields": types.M{
 			"post": types.M{"type": "String"},
@@ -495,7 +499,7 @@ func Test_validateClientClassCreation(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	config.TConfig.AllowClientClassCreation = false
 	className = "user"
 	q, _ = NewQuery(nil, className, nil, nil, nil)
@@ -507,7 +511,7 @@ func Test_validateClientClassCreation(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_replaceSelect(t *testing.T) {
+func TestPostgres_replaceSelect(t *testing.T) {
 	var className string
 	var schema types.M
 	var object types.M
@@ -609,7 +613,7 @@ func Test_replaceSelect(t *testing.T) {
 		t.Error("expect:", expectErr, "result:", err)
 	}
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	where = types.M{
 		"hometown": types.M{
 			"$select": types.M{
@@ -632,11 +636,12 @@ func Test_replaceSelect(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Team"
 	schema = types.M{
 		"fields": types.M{
-			"city": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"city":     types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -677,12 +682,13 @@ func Test_replaceSelect(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Team"
 	schema = types.M{
 		"fields": types.M{
-			"city":   types.M{"type": "String"},
-			"winPct": types.M{"type": "Number"},
+			"objectId": types.M{"type": "String"},
+			"city":     types.M{"type": "String"},
+			"winPct":   types.M{"type": "Number"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -729,12 +735,13 @@ func Test_replaceSelect(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Team"
 	schema = types.M{
 		"fields": types.M{
-			"city":   types.M{"type": "String"},
-			"winPct": types.M{"type": "Number"},
+			"objectId": types.M{"type": "String"},
+			"city":     types.M{"type": "String"},
+			"winPct":   types.M{"type": "Number"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -796,7 +803,7 @@ func Test_replaceSelect(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_replaceDontSelect(t *testing.T) {
+func TestPostgres_replaceDontSelect(t *testing.T) {
 	var className string
 	var schema types.M
 	var object types.M
@@ -898,7 +905,7 @@ func Test_replaceDontSelect(t *testing.T) {
 		t.Error("expect:", expectErr, "result:", err)
 	}
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	where = types.M{
 		"hometown": types.M{
 			"$dontSelect": types.M{
@@ -921,11 +928,12 @@ func Test_replaceDontSelect(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Team"
 	schema = types.M{
 		"fields": types.M{
-			"city": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"city":     types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -966,12 +974,13 @@ func Test_replaceDontSelect(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Team"
 	schema = types.M{
 		"fields": types.M{
-			"city":   types.M{"type": "String"},
-			"winPct": types.M{"type": "Number"},
+			"objectId": types.M{"type": "String"},
+			"city":     types.M{"type": "String"},
+			"winPct":   types.M{"type": "Number"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1018,12 +1027,13 @@ func Test_replaceDontSelect(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Team"
 	schema = types.M{
 		"fields": types.M{
-			"city":   types.M{"type": "String"},
-			"winPct": types.M{"type": "Number"},
+			"objectId": types.M{"type": "String"},
+			"city":     types.M{"type": "String"},
+			"winPct":   types.M{"type": "Number"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1085,7 +1095,7 @@ func Test_replaceDontSelect(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_replaceInQuery(t *testing.T) {
+func TestPostgres_replaceInQuery(t *testing.T) {
 	var className string
 	var schema types.M
 	var object types.M
@@ -1156,7 +1166,7 @@ func Test_replaceInQuery(t *testing.T) {
 		t.Error("expect:", expectErr, "result:", err)
 	}
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	where = types.M{
 		"post": types.M{
 			"$inQuery": types.M{
@@ -1177,11 +1187,12 @@ func Test_replaceInQuery(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Post"
 	schema = types.M{
 		"fields": types.M{
-			"title": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1209,9 +1220,7 @@ func Test_replaceInQuery(t *testing.T) {
 		},
 	}
 	q, _ = NewQuery(Master(), "user", where, nil, nil)
-	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++")
 	err = q.replaceInQuery()
-	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++")
 	expect = types.M{
 		"post": types.M{
 			"$in": types.S{
@@ -1238,12 +1247,13 @@ func Test_replaceInQuery(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Post"
 	schema = types.M{
 		"fields": types.M{
-			"title": types.M{"type": "String"},
-			"image": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
+			"image":    types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1297,13 +1307,14 @@ func Test_replaceInQuery(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Post"
 	schema = types.M{
 		"fields": types.M{
-			"title":  types.M{"type": "String"},
-			"image":  types.M{"type": "String"},
-			"author": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
+			"image":    types.M{"type": "String"},
+			"author":   types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1376,7 +1387,7 @@ func Test_replaceInQuery(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_replaceNotInQuery(t *testing.T) {
+func TestPostgres_replaceNotInQuery(t *testing.T) {
 	var className string
 	var schema types.M
 	var object types.M
@@ -1447,7 +1458,7 @@ func Test_replaceNotInQuery(t *testing.T) {
 		t.Error("expect:", expectErr, "result:", err)
 	}
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	where = types.M{
 		"post": types.M{
 			"$notInQuery": types.M{
@@ -1468,11 +1479,12 @@ func Test_replaceNotInQuery(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Post"
 	schema = types.M{
 		"fields": types.M{
-			"title": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1527,12 +1539,13 @@ func Test_replaceNotInQuery(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Post"
 	schema = types.M{
 		"fields": types.M{
-			"title": types.M{"type": "String"},
-			"image": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
+			"image":    types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1586,13 +1599,14 @@ func Test_replaceNotInQuery(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "Post"
 	schema = types.M{
 		"fields": types.M{
-			"title":  types.M{"type": "String"},
-			"image":  types.M{"type": "String"},
-			"author": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"title":    types.M{"type": "String"},
+			"image":    types.M{"type": "String"},
+			"author":   types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
@@ -1665,7 +1679,8 @@ func Test_replaceNotInQuery(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_runFind(t *testing.T) {
+func TestPostgres_runFind(t *testing.T) {
+	var schema types.M
 	var object types.M
 	var where types.M
 	var options types.M
@@ -1674,7 +1689,7 @@ func Test_runFind(t *testing.T) {
 	var err error
 	var expect types.S
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{}
 	className = "user"
@@ -1686,20 +1701,21 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{}
 	className = "user"
@@ -1716,20 +1732,21 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{"limit": 0}
 	className = "user"
@@ -1741,25 +1758,26 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{"limit": 1}
 	className = "user"
@@ -1776,25 +1794,26 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{"skip": 1}
 	className = "user"
@@ -1811,34 +1830,35 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
-			"age": types.M{"type": "Number"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
+			"age":      types.M{"type": "Number"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 		"age":      2,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 		"age":      3,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "03",
 		"key":      "hello",
 		"age":      1,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{"order": "age"}
 	className = "user"
@@ -1848,17 +1868,17 @@ func Test_runFind(t *testing.T) {
 		types.M{
 			"objectId": "03",
 			"key":      "hello",
-			"age":      1,
+			"age":      1.0,
 		},
 		types.M{
 			"objectId": "01",
 			"key":      "hello",
-			"age":      2,
+			"age":      2.0,
 		},
 		types.M{
 			"objectId": "02",
 			"key":      "hello",
-			"age":      3,
+			"age":      3.0,
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, q.response["results"]) == false {
@@ -1866,34 +1886,37 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
-			"age": types.M{"type": "Number"},
+			"objectId":  types.M{"type": "String"},
+			"createdAt": types.M{"type": "Date"},
+			"updatedAt": types.M{"type": "Date"},
+			"key":       types.M{"type": "String"},
+			"age":       types.M{"type": "Number"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 		"age":      2,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 		"age":      3,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "03",
 		"key":      "hello",
 		"age":      1,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{"keys": "age"}
 	className = "user"
@@ -1902,15 +1925,15 @@ func Test_runFind(t *testing.T) {
 	expect = types.S{
 		types.M{
 			"objectId": "01",
-			"age":      2,
+			"age":      2.0,
 		},
 		types.M{
 			"objectId": "02",
-			"age":      3,
+			"age":      3.0,
 		},
 		types.M{
 			"objectId": "03",
-			"age":      1,
+			"age":      1.0,
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, q.response["results"]) == false {
@@ -1918,34 +1941,37 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
-			"age": types.M{"type": "Number"},
+			"objectId":  types.M{"type": "String"},
+			"createdAt": types.M{"type": "Date"},
+			"updatedAt": types.M{"type": "Date"},
+			"key":       types.M{"type": "String"},
+			"age":       types.M{"type": "Number"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 		"age":      2,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 		"age":      3,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "03",
 		"key":      "hello",
 		"age":      1,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{"keys": "age.id"}
 	className = "user"
@@ -1954,15 +1980,15 @@ func Test_runFind(t *testing.T) {
 	expect = types.S{
 		types.M{
 			"objectId": "01",
-			"age":      2,
+			"age":      2.0,
 		},
 		types.M{
 			"objectId": "02",
-			"age":      3,
+			"age":      3.0,
 		},
 		types.M{
 			"objectId": "03",
-			"age":      1,
+			"age":      1.0,
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, q.response["results"]) == false {
@@ -1970,28 +1996,29 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
-			"age": types.M{"type": "Number"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
+			"age":      types.M{"type": "Number"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 		"age":      2,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 		"age":      3,
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{}
 	className = "user"
@@ -2003,13 +2030,13 @@ func Test_runFind(t *testing.T) {
 			"className": "post",
 			"objectId":  "01",
 			"key":       "hello",
-			"age":       2,
+			"age":       2.0,
 		},
 		types.M{
 			"className": "post",
 			"objectId":  "02",
 			"key":       "hello",
-			"age":       3,
+			"age":       3.0,
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, q.response["results"]) == false {
@@ -2017,15 +2044,17 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "_User"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
+			"objectId": types.M{"type": "String"},
 			"username": types.M{"type": "String"},
 			"password": types.M{"type": "String"},
+			"authData": types.M{"type": "Object"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"username": "joe",
@@ -2036,7 +2065,7 @@ func Test_runFind(t *testing.T) {
 			},
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"username": "jack",
@@ -2047,8 +2076,8 @@ func Test_runFind(t *testing.T) {
 			},
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{}
 	className = "_User"
@@ -2059,7 +2088,7 @@ func Test_runFind(t *testing.T) {
 			"objectId": "01",
 			"username": "joe",
 			"authData": types.M{
-				"facebook": types.M{
+				"facebook": map[string]interface{}{
 					"id": "1001",
 				},
 			},
@@ -2068,7 +2097,7 @@ func Test_runFind(t *testing.T) {
 			"objectId": "02",
 			"username": "jack",
 			"authData": types.M{
-				"facebook": types.M{
+				"facebook": map[string]interface{}{
 					"id": "1002",
 				},
 			},
@@ -2079,18 +2108,19 @@ func Test_runFind(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	config.TConfig.ServerURL = "http://127.0.0.1"
 	config.TConfig.AppID = "1001"
 	className = "_User"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
+			"objectId": types.M{"type": "String"},
 			"username": types.M{"type": "String"},
 			"password": types.M{"type": "String"},
 			"icon":     types.M{"type": "File"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"username": "joe",
@@ -2100,7 +2130,7 @@ func Test_runFind(t *testing.T) {
 			"name":   "icon1.jpg",
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"username": "jack",
@@ -2110,8 +2140,8 @@ func Test_runFind(t *testing.T) {
 			"name":   "icon2.jpg",
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
-	initEnv()
+	orm.Adapter.CreateObject(className, schema, object)
+	initPostgresEnv()
 	where = types.M{}
 	options = types.M{}
 	className = "_User"
@@ -2143,7 +2173,8 @@ func Test_runFind(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_runCount(t *testing.T) {
+func TestPostgres_runCount(t *testing.T) {
+	var schema types.M
 	var object types.M
 	var options types.M
 	var className string
@@ -2159,14 +2190,15 @@ func Test_runCount(t *testing.T) {
 		t.Error("expect:", nil, "result:", q.response["count"], err)
 	}
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	options = types.M{"count": true}
 	className = "user"
 	q, _ = NewQuery(Master(), className, types.M{}, options, nil)
@@ -2177,24 +2209,25 @@ func Test_runCount(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	options = types.M{"count": true}
 	className = "user"
 	q, _ = NewQuery(Master(), className, types.M{}, options, nil)
@@ -2205,24 +2238,25 @@ func Test_runCount(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "01",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "02",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	options = types.M{
 		"count": true,
 		"skip":  1,
@@ -2238,7 +2272,7 @@ func Test_runCount(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_handleInclude(t *testing.T) {
+func TestPostgres_handleInclude(t *testing.T) {
 	var schema types.M
 	var object types.M
 	var className string
@@ -2247,11 +2281,12 @@ func Test_handleInclude(t *testing.T) {
 	var err error
 	var expect types.M
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "post"
 	schema = types.M{
 		"fields": types.M{
-			"id": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"id":       types.M{"type": "String"},
 			"user": types.M{
 				"type":        "Pointer",
 				"targetClass": "user",
@@ -2265,7 +2300,7 @@ func Test_handleInclude(t *testing.T) {
 		"user": types.M{
 			"__type":    "Pointer",
 			"className": "user",
-			"objectId":  "3001",
+			"objectId":  "123456789012345678903001",
 		},
 	}
 	orm.Adapter.CreateObject(className, schema, object)
@@ -2275,24 +2310,25 @@ func Test_handleInclude(t *testing.T) {
 		"user": types.M{
 			"__type":    "Pointer",
 			"className": "user",
-			"objectId":  "3002",
+			"objectId":  "123456789012345678903002",
 		},
 	}
 	orm.Adapter.CreateObject(className, schema, object)
 	className = "user"
 	schema = types.M{
 		"fields": types.M{
-			"name": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"name":     types.M{"type": "String"},
 		},
 	}
 	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
-		"objectId": "3001",
+		"objectId": "123456789012345678903001",
 		"name":     "joe",
 	}
 	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
-		"objectId": "3002",
+		"objectId": "123456789012345678903002",
 		"name":     "jack",
 	}
 	orm.Adapter.CreateObject(className, schema, object)
@@ -2331,7 +2367,7 @@ func Test_handleInclude(t *testing.T) {
 					"user": types.M{
 						"__type":    "Object",
 						"className": "user",
-						"objectId":  "3001",
+						"objectId":  "123456789012345678903001",
 						"name":      "joe",
 					},
 				},
@@ -2346,7 +2382,7 @@ func Test_handleInclude(t *testing.T) {
 					"user": types.M{
 						"__type":    "Object",
 						"className": "user",
-						"objectId":  "3002",
+						"objectId":  "123456789012345678903002",
 						"name":      "jack",
 					},
 				},
@@ -2354,509 +2390,16 @@ func Test_handleInclude(t *testing.T) {
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, q.response) == false {
-		t.Error("expect:", expect, "result:", q.response)
+		t.Error("expect:", expect, "result:", q.response, err)
 	}
 	orm.TomatoDBController.DeleteEverything()
 }
 
 /////////////////////////////////////////////////////////////////
 
-func Test_NewQuery(t *testing.T) {
-	var auth *Auth
+func TestPostgres_includePath(t *testing.T) {
 	var className string
-	var where types.M
-	var options types.M
-	var clientSDK map[string]string
-	var result *Query
-	var err error
-	var expectErr error
-	var expect *Query
-	/**********************************************************/
-	auth = Nobody()
-	className = "user"
-	where = nil
-	options = nil
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		findOptions:       types.M{"acl": nil},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = nil
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = &Auth{
-		IsMaster: false,
-		User: types.M{
-			"objectId": "1001",
-		},
-	}
-	className = "user"
-	where = nil
-	options = nil
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		findOptions:       types.M{"acl": []string{"1001"}},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Nobody()
-	className = "_Session"
-	where = nil
-	options = nil
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expectErr = errs.E(errs.InvalidSessionToken, "This session token is invalid.")
-	if err == nil || reflect.DeepEqual(expectErr, err) == false {
-		t.Error("expect:", expectErr, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = &Auth{
-		IsMaster: false,
-		User: types.M{
-			"objectId": "1001",
-		},
-	}
-	className = "_Session"
-	where = nil
-	options = nil
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:      auth,
-		className: "_Session",
-		Where: types.M{
-			"$and": types.S{
-				types.M{},
-				types.M{
-					"user": types.M{
-						"__type":    "Pointer",
-						"className": "_User",
-						"objectId":  "1001",
-					},
-				},
-			},
-		},
-		findOptions:       types.M{"acl": []string{"1001"}},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"keys": 1024}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"keys": 1024},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"keys": "post"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"keys": "post"},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{"post", "objectId", "createdAt", "updatedAt"},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"keys": "post,user"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"keys": "post,user"},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{"post", "user", "objectId", "createdAt", "updatedAt"},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"keys": "post.id,user"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"keys": "post.id,user", "include": "post"},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{[]string{"post"}},
-		keys:              []string{"post.id", "user", "objectId", "createdAt", "updatedAt"},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"keys": "post.id,user", "include": "name"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"keys": "post.id,user", "include": "name,post"},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{[]string{"name"}, []string{"post"}},
-		keys:              []string{"post.id", "user", "objectId", "createdAt", "updatedAt"},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"count": true}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"count": true},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           true,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"skip": 10}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"skip": 10},
-		findOptions:       types.M{"skip": 10},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"limit": 10}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"limit": 10},
-		findOptions:       types.M{"limit": 10},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"order": "post,-user"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"order": "post,-user"},
-		findOptions:       types.M{"sort": []string{"post", "-user"}},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"include": "user.session,name.friend"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:        auth,
-		className:   "user",
-		Where:       types.M{},
-		restOptions: types.M{"include": "user.session,name.friend"},
-		findOptions: types.M{},
-		response:    types.M{},
-		doCount:     false,
-		include: [][]string{
-			[]string{"name"},
-			[]string{"name", "friend"},
-			[]string{"user"},
-			[]string{"user", "session"},
-		},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"include": "name,user.session,name.friend"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:        auth,
-		className:   "user",
-		Where:       types.M{},
-		restOptions: types.M{"include": "name,user.session,name.friend"},
-		findOptions: types.M{},
-		response:    types.M{},
-		doCount:     false,
-		include: [][]string{
-			[]string{"name"},
-			[]string{"name", "friend"},
-			[]string{"user"},
-			[]string{"user", "session"},
-		},
-		keys:              []string{},
-		redirectKey:       "",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"redirectClassNameForKey": "post"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:              auth,
-		className:         "user",
-		Where:             types.M{},
-		restOptions:       types.M{"redirectClassNameForKey": "post"},
-		findOptions:       types.M{},
-		response:          types.M{},
-		doCount:           false,
-		include:           [][]string{},
-		keys:              []string{},
-		redirectKey:       "post",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{"other": "hello"}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expectErr = errs.E(errs.InvalidJSON, "bad option: other")
-	if err == nil || reflect.DeepEqual(expectErr, err) == false {
-		t.Error("expect:", expectErr, "result:", result, err)
-	}
-	/**********************************************************/
-	auth = Master()
-	className = "user"
-	where = nil
-	options = types.M{
-		"keys":                    "post,user",
-		"count":                   true,
-		"skip":                    10,
-		"limit":                   10,
-		"order":                   "post,-user",
-		"include":                 "user.session,name.friend",
-		"redirectClassNameForKey": "post",
-	}
-	clientSDK = nil
-	result, err = NewQuery(auth, className, where, options, clientSDK)
-	expect = &Query{
-		auth:      auth,
-		className: "user",
-		Where:     types.M{},
-		restOptions: types.M{
-			"keys":                    "post,user",
-			"count":                   true,
-			"skip":                    10,
-			"limit":                   10,
-			"order":                   "post,-user",
-			"include":                 "user.session,name.friend",
-			"redirectClassNameForKey": "post",
-		},
-		findOptions: types.M{
-			"skip":  10,
-			"limit": 10,
-			"sort":  []string{"post", "-user"},
-		},
-		response: types.M{},
-		doCount:  true,
-		include: [][]string{
-			[]string{"name"},
-			[]string{"name", "friend"},
-			[]string{"user"},
-			[]string{"user", "session"},
-		},
-		keys:              []string{"post", "user", "objectId", "createdAt", "updatedAt"},
-		redirectKey:       "post",
-		redirectClassName: "",
-		clientSDK:         nil,
-	}
-	if err != nil || reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result, err)
-	}
-}
-
-func Test_includePath(t *testing.T) {
-	var className string
+	var schema types.M
 	var object types.M
 	var auth *Auth
 	var response types.M
@@ -2865,24 +2408,25 @@ func Test_includePath(t *testing.T) {
 	var err error
 	var expect types.M
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "post"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "2001",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "2002",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	auth = Master()
 	response = types.M{
 		"results": types.S{
@@ -2933,31 +2477,33 @@ func Test_includePath(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "post"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "2001",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	className = "postEx"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "3001",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	auth = Master()
 	response = types.M{
 		"results": types.S{
@@ -3008,24 +2554,25 @@ func Test_includePath(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key": types.M{"type": "String"},
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "4001",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "4002",
 		"key":      "hello",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	auth = Master()
 	response = types.M{
 		"results": types.S{
@@ -3088,16 +2635,17 @@ func Test_includePath(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "_User"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
+			"objectId":     types.M{"type": "String"},
 			"username":     types.M{"type": "String"},
 			"sessionToken": types.M{"type": "String"},
 			"authData":     types.M{"type": "Object"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId":     "2001",
 		"username":     "joe",
@@ -3108,7 +2656,7 @@ func Test_includePath(t *testing.T) {
 			},
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId":     "2002",
 		"username":     "jack",
@@ -3119,7 +2667,7 @@ func Test_includePath(t *testing.T) {
 			},
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	auth = Master()
 	response = types.M{
 		"results": types.S{
@@ -3153,7 +2701,7 @@ func Test_includePath(t *testing.T) {
 					"objectId":  "2001",
 					"username":  "joe",
 					"authData": types.M{
-						"facebook": types.M{
+						"facebook": map[string]interface{}{
 							"id": "1024",
 						},
 					},
@@ -3167,7 +2715,7 @@ func Test_includePath(t *testing.T) {
 					"objectId":  "2002",
 					"username":  "jack",
 					"authData": types.M{
-						"facebook": types.M{
+						"facebook": map[string]interface{}{
 							"id": "1024",
 						},
 					},
@@ -3180,16 +2728,18 @@ func Test_includePath(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "_User"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
+			"objectId":     types.M{"type": "String"},
 			"username":     types.M{"type": "String"},
 			"sessionToken": types.M{"type": "String"},
 			"authData":     types.M{"type": "Object"},
+			"_rperm":       types.M{"type": "Array"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId":     "2001",
 		"username":     "joe",
@@ -3200,7 +2750,7 @@ func Test_includePath(t *testing.T) {
 			},
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId":     "2002",
 		"username":     "jack",
@@ -3211,7 +2761,7 @@ func Test_includePath(t *testing.T) {
 			},
 		},
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	auth = Nobody()
 	response = types.M{
 		"results": types.S{
@@ -3258,31 +2808,34 @@ func Test_includePath(t *testing.T) {
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, response) == false {
-		t.Error("expect:", expect, "result:", response)
+		t.Error("expect:", expect, "result:", response, err)
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key":  types.M{"type": "String"},
-			"name": types.M{"type": "String"},
+			"objectId":  types.M{"type": "String"},
+			"createdAt": types.M{"type": "Date"},
+			"updatedAt": types.M{"type": "Date"},
+			"key":       types.M{"type": "String"},
+			"name":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "4001",
 		"key":      "hello",
 		"name":     "joe",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "4002",
 		"key":      "hello",
 		"name":     "jack",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	auth = Master()
 	response = types.M{
 		"results": types.S{
@@ -3342,31 +2895,34 @@ func Test_includePath(t *testing.T) {
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, response) == false {
-		t.Error("expect:", expect, "result:", response)
+		t.Error("expect:", expect, "result:", response, err)
 	}
 	orm.TomatoDBController.DeleteEverything()
 	/**********************************************************/
-	initEnv()
+	initPostgresEnv()
 	className = "user"
-	object = types.M{
+	schema = types.M{
 		"fields": types.M{
-			"key":  types.M{"type": "String"},
-			"name": types.M{"type": "String"},
+			"objectId":  types.M{"type": "String"},
+			"createdAt": types.M{"type": "Date"},
+			"updatedAt": types.M{"type": "Date"},
+			"key":       types.M{"type": "String"},
+			"name":      types.M{"type": "String"},
 		},
 	}
-	orm.Adapter.CreateClass(className, object)
+	orm.Adapter.CreateClass(className, schema)
 	object = types.M{
 		"objectId": "4001",
 		"key":      "hello",
 		"name":     "joe",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	object = types.M{
 		"objectId": "4002",
 		"key":      "hello",
 		"name":     "jack",
 	}
-	orm.Adapter.CreateObject(className, types.M{}, object)
+	orm.Adapter.CreateObject(className, schema, object)
 	auth = Master()
 	response = types.M{
 		"results": types.S{
@@ -3428,945 +2984,15 @@ func Test_includePath(t *testing.T) {
 		},
 	}
 	if err != nil || reflect.DeepEqual(expect, response) == false {
-		t.Error("expect:", expect, "result:", response)
+		t.Error("expect:", expect, "result:", response, err)
 	}
 	orm.TomatoDBController.DeleteEverything()
 }
 
-func Test_findPointers(t *testing.T) {
-	var object interface{}
-	var path []string
-	var result []types.M
-	var expect []types.M
-	/**********************************************************/
-	object = nil
-	path = nil
-	result = findPointers(object, path)
-	expect = []types.M{}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = "hello"
-	path = nil
-	result = findPointers(object, path)
-	expect = []types.M{}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = types.M{
-		"key": "hello",
-	}
-	path = nil
-	result = findPointers(object, path)
-	expect = []types.M{}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = types.M{
-		"__type":   "Pointer",
-		"objectId": "1001",
-	}
-	path = nil
-	result = findPointers(object, path)
-	expect = []types.M{
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1001",
-		},
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = types.M{
-		"key": "hello",
-	}
-	path = []string{"post"}
-	result = findPointers(object, path)
-	expect = []types.M{}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = types.M{
-		"post": types.M{
-			"__type":   "Pointer",
-			"objectId": "1001",
-		},
-	}
-	path = []string{"post"}
-	result = findPointers(object, path)
-	expect = []types.M{
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1001",
-		},
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = types.S{
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1001",
-		},
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1002",
-		},
-	}
-	path = []string{}
-	result = findPointers(object, path)
-	expect = []types.M{
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1001",
-		},
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1002",
-		},
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = types.M{
-		"post": types.S{
-			types.M{
-				"__type":   "Pointer",
-				"objectId": "1001",
-			},
-			types.M{
-				"__type":   "Pointer",
-				"objectId": "1002",
-			},
-		},
-	}
-	path = []string{"post"}
-	result = findPointers(object, path)
-	expect = []types.M{
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1001",
-		},
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1002",
-		},
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	object = types.M{
-		"post": types.M{
-			"user": types.M{
-				"__type":   "Pointer",
-				"objectId": "1001",
-			},
-		},
-	}
-	path = []string{"post", "user"}
-	result = findPointers(object, path)
-	expect = []types.M{
-		types.M{
-			"__type":   "Pointer",
-			"objectId": "1001",
-		},
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
+func initPostgresEnv() {
+	orm.InitOrm(getPostgresAdapter())
 }
 
-func Test_replacePointers(t *testing.T) {
-	var pointers []types.M
-	var replace types.M
-	var expect []types.M
-	/**********************************************************/
-	pointers = nil
-	replace = nil
-	replacePointers(pointers, replace)
-	expect = nil
-	if reflect.DeepEqual(expect, pointers) == false {
-		t.Error("expect:", expect, "result:", pointers)
-	}
-	/**********************************************************/
-	pointers = []types.M{nil}
-	replace = types.M{
-		"1001": types.M{
-			"key": "hello",
-		},
-	}
-	replacePointers(pointers, replace)
-	expect = []types.M{nil}
-	if reflect.DeepEqual(expect, pointers) == false {
-		t.Error("expect:", expect, "result:", pointers)
-	}
-	/**********************************************************/
-	pointers = []types.M{
-		types.M{
-			"post": "post",
-		},
-	}
-	replace = types.M{
-		"1001": types.M{
-			"key": "hello",
-		},
-	}
-	replacePointers(pointers, replace)
-	expect = []types.M{
-		types.M{
-			"post": "post",
-		},
-	}
-	if reflect.DeepEqual(expect, pointers) == false {
-		t.Error("expect:", expect, "result:", pointers)
-	}
-	/**********************************************************/
-	pointers = []types.M{
-		types.M{
-			"objectId": "1002",
-			"post":     "post",
-		},
-	}
-	replace = types.M{
-		"1001": types.M{
-			"key": "hello",
-		},
-	}
-	replacePointers(pointers, replace)
-	expect = []types.M{
-		types.M{
-			"objectId": "1002",
-			"post":     "post",
-		},
-	}
-	if reflect.DeepEqual(expect, pointers) == false {
-		t.Error("expect:", expect, "result:", pointers)
-	}
-	/**********************************************************/
-	pointers = []types.M{
-		types.M{
-			"objectId": "1001",
-			"post":     "post",
-		},
-	}
-	replace = types.M{
-		"1001": types.M{
-			"key": "hello",
-		},
-	}
-	replacePointers(pointers, replace)
-	expect = []types.M{
-		types.M{
-			"objectId": "1001",
-			"post":     "post",
-			"key":      "hello",
-		},
-	}
-	if reflect.DeepEqual(expect, pointers) == false {
-		t.Error("expect:", expect, "result:", pointers)
-	}
-	/**********************************************************/
-	pointers = []types.M{
-		types.M{
-			"objectId": "1001",
-			"post":     "post",
-		},
-		types.M{
-			"objectId": "1002",
-			"post":     "post",
-		},
-	}
-	replace = types.M{
-		"1001": types.M{
-			"key": "hello",
-		},
-		"1002": types.M{
-			"key": "hello",
-		},
-	}
-	replacePointers(pointers, replace)
-	expect = []types.M{
-		types.M{
-			"objectId": "1001",
-			"post":     "post",
-			"key":      "hello",
-		},
-		types.M{
-			"objectId": "1002",
-			"post":     "post",
-			"key":      "hello",
-		},
-	}
-	if reflect.DeepEqual(expect, pointers) == false {
-		t.Error("expect:", expect, "result:", pointers)
-	}
-}
-
-func Test_findObjectWithKey(t *testing.T) {
-	var root interface{}
-	var key string
-	var result types.M
-	var expect types.M
-	/**********************************************************/
-	root = nil
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = nil
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	root = types.M{
-		"post": "hello",
-	}
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = types.M{
-		"post": "hello",
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	root = types.M{
-		"key": "hello",
-	}
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = nil
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	root = types.M{
-		"key": types.M{
-			"post": "hello",
-		},
-	}
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = types.M{
-		"post": "hello",
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	root = types.M{
-		"key": types.M{
-			"key": "hello",
-		},
-	}
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = nil
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	root = types.S{
-		types.M{
-			"post": "hello",
-		},
-	}
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = types.M{
-		"post": "hello",
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	root = types.S{
-		types.M{
-			"key": "hello",
-		},
-	}
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = nil
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-	/**********************************************************/
-	root = types.S{
-		types.M{
-			"key": types.M{
-				"post": "hello",
-			},
-		},
-	}
-	key = "post"
-	result = findObjectWithKey(root, key)
-	expect = types.M{
-		"post": "hello",
-	}
-	if reflect.DeepEqual(expect, result) == false {
-		t.Error("expect:", expect, "result:", result)
-	}
-}
-
-func Test_transformSelect(t *testing.T) {
-	var selectObject types.M
-	var key string
-	var objects []types.M
-	var expect types.M
-	/**********************************************************/
-	selectObject = nil
-	key = "user"
-	objects = nil
-	transformSelect(selectObject, key, objects)
-	expect = nil
-	if reflect.DeepEqual(expect, selectObject) == false {
-		t.Error("expect:", expect, "result:", selectObject)
-	}
-	/**********************************************************/
-	selectObject = types.M{}
-	key = "user"
-	objects = nil
-	transformSelect(selectObject, key, objects)
-	expect = types.M{}
-	if reflect.DeepEqual(expect, selectObject) == false {
-		t.Error("expect:", expect, "result:", selectObject)
-	}
-	/**********************************************************/
-	selectObject = types.M{
-		"$select": "string",
-	}
-	key = "user"
-	objects = nil
-	transformSelect(selectObject, key, objects)
-	expect = types.M{
-		"$in": types.S{},
-	}
-	if reflect.DeepEqual(expect, selectObject) == false {
-		t.Error("expect:", expect, "result:", selectObject)
-	}
-	/**********************************************************/
-	selectObject = types.M{
-		"$select": "string",
-	}
-	key = "user"
-	objects = []types.M{}
-	transformSelect(selectObject, key, objects)
-	expect = types.M{
-		"$in": types.S{},
-	}
-	if reflect.DeepEqual(expect, selectObject) == false {
-		t.Error("expect:", expect, "result:", selectObject)
-	}
-	/**********************************************************/
-	selectObject = types.M{
-		"$select": "string",
-	}
-	key = "user"
-	objects = []types.M{
-		types.M{
-			"user": "1001",
-		},
-		types.M{
-			"key": "1002",
-		},
-	}
-	transformSelect(selectObject, key, objects)
-	expect = types.M{
-		"$in": types.S{
-			"1001",
-		},
-	}
-	if reflect.DeepEqual(expect, selectObject) == false {
-		t.Error("expect:", expect, "result:", selectObject)
-	}
-	/**********************************************************/
-	selectObject = types.M{
-		"$select": "string",
-	}
-	key = "user"
-	objects = []types.M{
-		types.M{
-			"user": "1001",
-		},
-		types.M{
-			"user": "1002",
-		},
-	}
-	transformSelect(selectObject, key, objects)
-	expect = types.M{
-		"$in": types.S{
-			"1001",
-			"1002",
-		},
-	}
-	if reflect.DeepEqual(expect, selectObject) == false {
-		t.Error("expect:", expect, "result:", selectObject)
-	}
-	/**********************************************************/
-	selectObject = types.M{
-		"$select": "string",
-		"$in": types.S{
-			"1003",
-		},
-	}
-	key = "user"
-	objects = []types.M{
-		types.M{
-			"user": "1001",
-		},
-		types.M{
-			"user": "1002",
-		},
-	}
-	transformSelect(selectObject, key, objects)
-	expect = types.M{
-		"$in": types.S{
-			"1003",
-			"1001",
-			"1002",
-		},
-	}
-	if reflect.DeepEqual(expect, selectObject) == false {
-		t.Error("expect:", expect, "result:", selectObject)
-	}
-}
-
-func Test_transformDontSelect(t *testing.T) {
-	var dontSelectObject types.M
-	var key string
-	var objects []types.M
-	var expect types.M
-	/**********************************************************/
-	dontSelectObject = nil
-	key = "user"
-	objects = nil
-	transformDontSelect(dontSelectObject, key, objects)
-	expect = nil
-	if reflect.DeepEqual(expect, dontSelectObject) == false {
-		t.Error("expect:", expect, "result:", dontSelectObject)
-	}
-	/**********************************************************/
-	dontSelectObject = types.M{}
-	key = "user"
-	objects = nil
-	transformDontSelect(dontSelectObject, key, objects)
-	expect = types.M{}
-	if reflect.DeepEqual(expect, dontSelectObject) == false {
-		t.Error("expect:", expect, "result:", dontSelectObject)
-	}
-	/**********************************************************/
-	dontSelectObject = types.M{
-		"$dontSelect": "string",
-	}
-	key = "user"
-	objects = nil
-	transformDontSelect(dontSelectObject, key, objects)
-	expect = types.M{
-		"$nin": types.S{},
-	}
-	if reflect.DeepEqual(expect, dontSelectObject) == false {
-		t.Error("expect:", expect, "result:", dontSelectObject)
-	}
-	/**********************************************************/
-	dontSelectObject = types.M{
-		"$dontSelect": "string",
-	}
-	key = "user"
-	objects = []types.M{}
-	transformDontSelect(dontSelectObject, key, objects)
-	expect = types.M{
-		"$nin": types.S{},
-	}
-	if reflect.DeepEqual(expect, dontSelectObject) == false {
-		t.Error("expect:", expect, "result:", dontSelectObject)
-	}
-	/**********************************************************/
-	dontSelectObject = types.M{
-		"$dontSelect": "string",
-	}
-	key = "user"
-	objects = []types.M{
-		types.M{
-			"user": "1001",
-		},
-		types.M{
-			"key": "1002",
-		},
-	}
-	transformDontSelect(dontSelectObject, key, objects)
-	expect = types.M{
-		"$nin": types.S{
-			"1001",
-		},
-	}
-	if reflect.DeepEqual(expect, dontSelectObject) == false {
-		t.Error("expect:", expect, "result:", dontSelectObject)
-	}
-	/**********************************************************/
-	dontSelectObject = types.M{
-		"$dontSelect": "string",
-	}
-	key = "user"
-	objects = []types.M{
-		types.M{
-			"user": "1001",
-		},
-		types.M{
-			"user": "1002",
-		},
-	}
-	transformDontSelect(dontSelectObject, key, objects)
-	expect = types.M{
-		"$nin": types.S{
-			"1001",
-			"1002",
-		},
-	}
-	if reflect.DeepEqual(expect, dontSelectObject) == false {
-		t.Error("expect:", expect, "result:", dontSelectObject)
-	}
-	/**********************************************************/
-	dontSelectObject = types.M{
-		"$dontSelect": "string",
-		"$nin": types.S{
-			"1003",
-		},
-	}
-	key = "user"
-	objects = []types.M{
-		types.M{
-			"user": "1001",
-		},
-		types.M{
-			"user": "1002",
-		},
-	}
-	transformDontSelect(dontSelectObject, key, objects)
-	expect = types.M{
-		"$nin": types.S{
-			"1003",
-			"1001",
-			"1002",
-		},
-	}
-	if reflect.DeepEqual(expect, dontSelectObject) == false {
-		t.Error("expect:", expect, "result:", dontSelectObject)
-	}
-}
-
-func Test_transformInQuery(t *testing.T) {
-	var inQueryObject types.M
-	var className string
-	var results []types.M
-	var expect types.M
-	/**********************************************************/
-	inQueryObject = nil
-	className = "user"
-	results = nil
-	transformInQuery(inQueryObject, className, results)
-	expect = nil
-	if reflect.DeepEqual(expect, inQueryObject) == false {
-		t.Error("expect:", expect, "result:", inQueryObject)
-	}
-	/**********************************************************/
-	inQueryObject = types.M{}
-	className = "user"
-	results = nil
-	transformInQuery(inQueryObject, className, results)
-	expect = types.M{}
-	if reflect.DeepEqual(expect, inQueryObject) == false {
-		t.Error("expect:", expect, "result:", inQueryObject)
-	}
-	/**********************************************************/
-	inQueryObject = types.M{
-		"$inQuery": "string",
-	}
-	className = "user"
-	results = nil
-	transformInQuery(inQueryObject, className, results)
-	expect = types.M{
-		"$in": types.S{},
-	}
-	if reflect.DeepEqual(expect, inQueryObject) == false {
-		t.Error("expect:", expect, "result:", inQueryObject)
-	}
-	/**********************************************************/
-	inQueryObject = types.M{
-		"$inQuery": "string",
-	}
-	className = "user"
-	results = []types.M{}
-	transformInQuery(inQueryObject, className, results)
-	expect = types.M{
-		"$in": types.S{},
-	}
-	if reflect.DeepEqual(expect, inQueryObject) == false {
-		t.Error("expect:", expect, "result:", inQueryObject)
-	}
-	/**********************************************************/
-	inQueryObject = types.M{
-		"$inQuery": "string",
-	}
-	className = "user"
-	results = []types.M{
-		types.M{
-			"objectId": "1001",
-		},
-		types.M{
-			"key": "1002",
-		},
-	}
-	transformInQuery(inQueryObject, className, results)
-	expect = types.M{
-		"$in": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1001",
-			},
-		},
-	}
-	if reflect.DeepEqual(expect, inQueryObject) == false {
-		t.Error("expect:", expect, "result:", inQueryObject)
-	}
-	/**********************************************************/
-	inQueryObject = types.M{
-		"$inQuery": "string",
-	}
-	className = "user"
-	results = []types.M{
-		types.M{
-			"objectId": "1001",
-		},
-		types.M{
-			"objectId": "1002",
-		},
-	}
-	transformInQuery(inQueryObject, className, results)
-	expect = types.M{
-		"$in": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1001",
-			},
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1002",
-			},
-		},
-	}
-	if reflect.DeepEqual(expect, inQueryObject) == false {
-		t.Error("expect:", expect, "result:", inQueryObject)
-	}
-	/**********************************************************/
-	inQueryObject = types.M{
-		"$inQuery": "string",
-		"$in": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1003",
-			},
-		},
-	}
-	className = "user"
-	results = []types.M{
-		types.M{
-			"objectId": "1001",
-		},
-		types.M{
-			"objectId": "1002",
-		},
-	}
-	transformInQuery(inQueryObject, className, results)
-	expect = types.M{
-		"$in": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1003",
-			},
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1001",
-			},
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1002",
-			},
-		},
-	}
-	if reflect.DeepEqual(expect, inQueryObject) == false {
-		t.Error("expect:", expect, "result:", inQueryObject)
-	}
-}
-
-func Test_transformNotInQuery(t *testing.T) {
-	var notInQueryObject types.M
-	var className string
-	var results []types.M
-	var expect types.M
-	/**********************************************************/
-	notInQueryObject = nil
-	className = "user"
-	results = nil
-	transformNotInQuery(notInQueryObject, className, results)
-	expect = nil
-	if reflect.DeepEqual(expect, notInQueryObject) == false {
-		t.Error("expect:", expect, "result:", notInQueryObject)
-	}
-	/**********************************************************/
-	notInQueryObject = types.M{}
-	className = "user"
-	results = nil
-	transformNotInQuery(notInQueryObject, className, results)
-	expect = types.M{}
-	if reflect.DeepEqual(expect, notInQueryObject) == false {
-		t.Error("expect:", expect, "result:", notInQueryObject)
-	}
-	/**********************************************************/
-	notInQueryObject = types.M{
-		"$notInQuery": "string",
-	}
-	className = "user"
-	results = nil
-	transformNotInQuery(notInQueryObject, className, results)
-	expect = types.M{
-		"$nin": types.S{},
-	}
-	if reflect.DeepEqual(expect, notInQueryObject) == false {
-		t.Error("expect:", expect, "result:", notInQueryObject)
-	}
-	/**********************************************************/
-	notInQueryObject = types.M{
-		"$notInQuery": "string",
-	}
-	className = "user"
-	results = []types.M{}
-	transformNotInQuery(notInQueryObject, className, results)
-	expect = types.M{
-		"$nin": types.S{},
-	}
-	if reflect.DeepEqual(expect, notInQueryObject) == false {
-		t.Error("expect:", expect, "result:", notInQueryObject)
-	}
-	/**********************************************************/
-	notInQueryObject = types.M{
-		"$notInQuery": "string",
-	}
-	className = "user"
-	results = []types.M{
-		types.M{
-			"objectId": "1001",
-		},
-		types.M{
-			"key": "1002",
-		},
-	}
-	transformNotInQuery(notInQueryObject, className, results)
-	expect = types.M{
-		"$nin": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1001",
-			},
-		},
-	}
-	if reflect.DeepEqual(expect, notInQueryObject) == false {
-		t.Error("expect:", expect, "result:", notInQueryObject)
-	}
-	/**********************************************************/
-	notInQueryObject = types.M{
-		"$notInQuery": "string",
-	}
-	className = "user"
-	results = []types.M{
-		types.M{
-			"objectId": "1001",
-		},
-		types.M{
-			"objectId": "1002",
-		},
-	}
-	transformNotInQuery(notInQueryObject, className, results)
-	expect = types.M{
-		"$nin": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1001",
-			},
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1002",
-			},
-		},
-	}
-	if reflect.DeepEqual(expect, notInQueryObject) == false {
-		t.Error("expect:", expect, "result:", notInQueryObject)
-	}
-	/**********************************************************/
-	notInQueryObject = types.M{
-		"$notInQuery": "string",
-		"$nin": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1003",
-			},
-		},
-	}
-	className = "user"
-	results = []types.M{
-		types.M{
-			"objectId": "1001",
-		},
-		types.M{
-			"objectId": "1002",
-		},
-	}
-	transformNotInQuery(notInQueryObject, className, results)
-	expect = types.M{
-		"$nin": types.S{
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1003",
-			},
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1001",
-			},
-			types.M{
-				"__type":    "Pointer",
-				"className": "user",
-				"objectId":  "1002",
-			},
-		},
-	}
-	if reflect.DeepEqual(expect, notInQueryObject) == false {
-		t.Error("expect:", expect, "result:", notInQueryObject)
-	}
-}
-
-func initEnv() {
-	orm.InitOrm(getAdapter())
-}
-
-func getAdapter() storage.Adapter {
-	return mongo.NewMongoAdapter("tomato", test.OpenMongoDBForTest())
+func getPostgresAdapter() storage.Adapter {
+	return postgres.NewPostgresAdapter("tomato", test.OpenPostgreSQForTest())
 }

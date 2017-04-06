@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -91,6 +92,10 @@ func (p *PostgresAdapter) SetClassLevelPermissions(className string, CLPs types.
 
 // CreateClass 创建类
 func (p *PostgresAdapter) CreateClass(className string, schema types.M) (types.M, error) {
+	if schema == nil {
+		schema = types.M{}
+	}
+	schema["className"] = className
 	b, err := json.Marshal(schema)
 	if err != nil {
 		return nil, err
@@ -121,9 +126,9 @@ func (p *PostgresAdapter) createTable(className string, schema types.M) error {
 	}
 	valuesArray := types.S{}
 	patternsArray := []string{}
-	var fields types.M
-	if f := utils.M(schema["fields"]); f != nil {
-		fields = f
+	fields := utils.M(schema["fields"])
+	if fields == nil {
+		fields = types.M{}
 	}
 
 	if className == "_User" {
@@ -408,8 +413,8 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 	if schema == nil {
 		schema = types.M{}
 	}
-	if object == nil {
-		object = types.M{}
+	if len(object) == 0 {
+		return nil
 	}
 	schema = toPostgresSchema(schema)
 	object = handleDotFields(object)
@@ -419,6 +424,7 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 		return err
 	}
 
+	// 预处理 authData 字段，避免在遍历 map 并向其添加元素时造成的不稳定性
 	for fieldName := range object {
 		re := regexp.MustCompile(`^_auth_data_([a-zA-Z0-9_]+)$`)
 		authDataMatch := re.FindStringSubmatch(fieldName)
@@ -430,9 +436,11 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 			}
 			authData[provider] = object[fieldName]
 			delete(object, fieldName)
-			fieldName = "authData"
 			object["authData"] = authData
 		}
+	}
+
+	for fieldName := range object {
 		columnsArray = append(columnsArray, fieldName)
 
 		fields := utils.M(schema["fields"])
@@ -619,6 +627,10 @@ func (p *PostgresAdapter) GetAllClasses() ([]types.M, error) {
 
 // GetClass ...
 func (p *PostgresAdapter) GetClass(className string) (types.M, error) {
+	err := p.ensureSchemaCollectionExists()
+	if err != nil {
+		return nil, err
+	}
 	qs := `SELECT "schema" FROM "_SCHEMA" WHERE "className"=$1`
 	rows, err := p.db.Query(qs, className)
 	if err != nil {
@@ -659,6 +671,12 @@ func (p *PostgresAdapter) DeleteObjectsByQuery(className string, schema, query t
 	var count int
 	err = row.Scan(&count)
 	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			// 表不存在返回空
+			if e.Code == postgresRelationDoesNotExistError {
+				return errs.E(errs.ObjectNotFound, "Object not found.")
+			}
+		}
 		return err
 	}
 
@@ -1037,13 +1055,12 @@ func (p *PostgresAdapter) FindOneAndUpdate(className string, schema, query, upda
 					if len(b) > 0 && b[len(b)-1] == 93 {
 						b[len(b)-1] = 125
 					}
-					fieldValue = string(b)
 					updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d::text[]`, fieldName, index))
 				} else {
 					updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d::jsonb`, fieldName, index))
 				}
 
-				values = append(values, fieldValue)
+				values = append(values, string(b))
 				index = index + 1
 				continue
 			}
@@ -1059,9 +1076,16 @@ func (p *PostgresAdapter) FindOneAndUpdate(className string, schema, query, upda
 	}
 	values = append(values, where.values...)
 
+	// TODO 需要添加限制，只更新一条，UpdateObjectsByQuery 时更新多条
 	qs := fmt.Sprintf(`UPDATE "%s" SET %s WHERE %s RETURNING *`, className, strings.Join(updatePatterns, ","), where.pattern)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			// 表不存在返回空
+			if e.Code == postgresRelationDoesNotExistError {
+				return nil, errs.E(errs.ObjectNotFound, "Object not found.")
+			}
+		}
 		return nil, err
 	}
 
@@ -1119,9 +1143,28 @@ func (p *PostgresAdapter) UpsertOneObject(className string, schema, query, updat
 	return nil
 }
 
-// EnsureUniqueness ...
+// EnsureUniqueness 创建索引
 func (p *PostgresAdapter) EnsureUniqueness(className string, schema types.M, fieldNames []string) error {
-	// TODO
+	sort.Sort(sort.StringSlice(fieldNames))
+	constraintName := `unique_` + strings.Join(fieldNames, "_")
+	constraintPatterns := []string{}
+	for _, fieldName := range fieldNames {
+		constraintPatterns = append(constraintPatterns, `"`+fieldName+`"`)
+	}
+
+	qs := fmt.Sprintf(`ALTER TABLE "%s" ADD CONSTRAINT "%s" UNIQUE (%s)`, className, constraintName, strings.Join(constraintPatterns, ","))
+	_, err := p.db.Exec(qs)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			if e.Code == postgresDuplicateRelationError && strings.Contains(e.Message, constraintName) {
+				// 索引已存在，忽略错误
+			} else if e.Code == postgresUniqueIndexViolationError && strings.Contains(e.Message, constraintName) {
+				return errs.E(errs.DuplicateValue, "A duplicate value for a field with unique values was provided")
+			}
+		} else {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1534,7 +1577,9 @@ func handleDotFields(object types.M) types.M {
 		currentObj := object
 		for i, next := range components {
 			if i == (len(components) - 1) {
-				currentObj[next] = value
+				if value != nil {
+					currentObj[next] = value
+				}
 				break
 			}
 			obj := currentObj[next]

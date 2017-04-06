@@ -5,7 +5,6 @@ import (
 	"log"
 	"reflect"
 	"testing"
-
 	"time"
 
 	"github.com/lfq7413/tomato/errs"
@@ -524,9 +523,7 @@ func Test_handleDotFields(t *testing.T) {
 				},
 			},
 			want: types.M{
-				"key": types.M{
-					"sub": nil,
-				},
+				"key":  types.M{},
 				"key2": "world",
 			},
 		},
@@ -1915,6 +1912,16 @@ func TestPostgresAdapter_createTable(t *testing.T) {
 			clean:      clean,
 		},
 		{
+			name: "1.1",
+			args: args{
+				className: "_User",
+				schema:    nil,
+			},
+			wantErr:    nil,
+			initialize: func(name string) {},
+			clean:      clean,
+		},
+		{
 			name: "2",
 			args: args{
 				className: "post",
@@ -2915,6 +2922,24 @@ func TestPostgresAdapter_CreateObject(t *testing.T) {
 			initialize: func(className string, schema types.M) {
 				p.CreateClass(className, schema)
 				p.CreateObject(className, schema, types.M{"objectId": "1024"})
+			},
+			clean: clean,
+		},
+		{
+			name: "14",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key1": types.M{"type": "String"},
+					},
+				},
+				object: nil,
+			},
+			wantErr: nil,
+			initialize: func(className string, schema types.M) {
+				p.CreateClass(className, schema)
 			},
 			clean: clean,
 		},
@@ -4042,6 +4067,34 @@ func TestPostgresAdapter_Find(t *testing.T) {
 			clean:      clean,
 		},
 		{
+			name: "37.1-where-text[]",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":    types.M{"type": "String"},
+						"_rperm": types.M{"type": "Array"},
+					},
+				},
+				query: types.M{
+					"_rperm": types.M{"$in": types.S{"hello", nil}},
+				},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": "hi", "_rperm": types.S{"hello", "world"}},
+					types.M{"key": "hi"},
+				},
+			},
+			want: []types.M{
+				types.M{"key": "hi", "_rperm": types.S{"hello", "world"}},
+				types.M{"key": "hi"},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
 			name: "38-where-$in",
 			args: args{
 				className: "post",
@@ -4963,6 +5016,28 @@ func TestPostgresAdapter_DeleteObjectsByQuery(t *testing.T) {
 			initialize: initialize,
 			clean:      clean,
 		},
+		{
+			name: "4",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key": types.M{"type": "String"},
+					},
+				},
+				query: types.M{"key": "world"},
+				dataObjects: []types.M{
+					types.M{"key": "hello"},
+					types.M{"key": "hi"},
+				},
+			},
+			wantErr: errs.E(errs.ObjectNotFound, "Object not found."),
+			initialize: func(className string, schema types.M, objects []types.M) {
+				p.ensureSchemaCollectionExists()
+			},
+			clean: clean,
+		},
 	}
 	for _, tt := range tests {
 		tt.initialize(tt.args.className, tt.args.schema, tt.args.dataObjects)
@@ -5327,6 +5402,374 @@ func TestPostgresAdapter_FindOneAndUpdate(t *testing.T) {
 			initialize: initialize,
 			clean:      clean,
 		},
+		{
+			name: "10-Increment",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Number"},
+					},
+				},
+				query:  types.M{"key2": 20},
+				update: types.M{"key2": types.M{"__op": "Increment", "amount": 10}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": 10},
+					types.M{"key": "hi", "key2": 20},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": 30.0},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "11-Add",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Array"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__op": "Add", "objects": types.S{"k3"}}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.S{"j1", "j2"}},
+					types.M{"key": "hi", "key2": types.S{"k1", "k2"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.S{"k1", "k2", "k3"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "12-Delete",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__op": "Delete"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": "world"},
+					types.M{"key": "hi", "key2": "world"},
+				},
+			},
+			want:       types.M{"key": "hi"},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "13-Remove",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Array"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__op": "Remove", "objects": types.S{"k3"}}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.S{"j1", "j2"}},
+					types.M{"key": "hi", "key2": types.S{"k1", "k2", "k3"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.S{"k1", "k2"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "14-AddUnique",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Array"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__op": "AddUnique", "objects": types.S{"k3", "k4"}}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.S{"j1", "j2"}},
+					types.M{"key": "hi", "key2": types.S{"k1", "k2", "k3"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.S{"k1", "k2", "k3", "k4"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "15-Pointer",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Pointer", "targetClass": "user"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__type": "Pointer", "className": "user", "objectId": "123456789012345678903333"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.M{"__type": "Pointer", "className": "user", "objectId": "123456789012345678901111"}},
+					types.M{"key": "hi", "key2": types.M{"__type": "Pointer", "className": "user", "objectId": "123456789012345678902222"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.M{"__type": "Pointer", "className": "user", "objectId": "123456789012345678903333"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "16-Date",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Date"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__type": "Date", "iso": "2008-01-02T15:04:05.000Z"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.M{"__type": "Date", "iso": "2006-01-02T15:04:05.000Z"}},
+					types.M{"key": "hi", "key2": types.M{"__type": "Date", "iso": "2007-01-02T15:04:05.000Z"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.M{"__type": "Date", "iso": "2008-01-02T15:04:05.000Z"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "17-File",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "File"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__type": "File", "name": "hi.png"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.M{"__type": "File", "name": "hello.png"}},
+					types.M{"key": "hi", "key2": types.M{"__type": "File", "name": "world.png"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.M{"__type": "File", "name": "hi.png"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "18-GeoPoint",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "GeoPoint"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"__type": "GeoPoint", "longitude": 30, "latitude": 30}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.M{"__type": "GeoPoint", "longitude": 10, "latitude": 10}},
+					types.M{"key": "hi", "key2": types.M{"__type": "GeoPoint", "longitude": 20, "latitude": 20}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.M{"__type": "GeoPoint", "longitude": 30.0, "latitude": 30.0}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "19-Object",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Object"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"key2": "go"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.M{"key1": "hello", "key2": "world"}},
+					types.M{"key": "hi", "key2": types.M{"key1": "hi", "key2": "world"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.M{"key1": "hi", "key2": "go"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "20-Object",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Object"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2.key2": types.M{"__op": "Delete"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.M{"key1": "hello", "key2": "world"}},
+					types.M{"key": "hi", "key2": types.M{"key1": "hi", "key2": "world"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.M{"key1": "hi"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "21-Object",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Object"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2.key2": types.M{"__op": "Delete"}, "key2.key1": "hello"},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.M{"key1": "hello", "key2": "world"}},
+					types.M{"key": "hi", "key2": types.M{"key1": "hi", "key2": "world"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.M{"key1": "hello"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "22-text[]",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":    types.M{"type": "String"},
+						"_rperm": types.M{"type": "Array"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"_rperm": types.S{"hello"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "_rperm": types.S{"hello", "world"}},
+					types.M{"key": "hi", "_rperm": types.S{"hi", "world"}},
+				},
+			},
+			want:       types.M{"key": "hi", "_rperm": types.S{"hello"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "23-Array",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "Array"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.S{"hello"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": types.S{"hello", "world"}},
+					types.M{"key": "hi", "key2": types.S{"hi", "world"}},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": types.S{"hello"}},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "24-Unsupport",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": types.M{"key": "hello"}},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": "world"},
+					types.M{"key": "hi", "key2": "world"},
+				},
+			},
+			want:       nil,
+			wantErr:    errs.E(errs.OperationForbidden, `Postgres doesn't support update {"key":"hello"} yet`),
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "25",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				query:  types.M{"key": "haha"},
+				update: types.M{"key2": "go"},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": "world"},
+					types.M{"key": "hi", "key2": "world"},
+				},
+			},
+			want:       types.M{},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
 	}
 	for _, tt := range tests {
 		tt.initialize(tt.args.className, tt.args.schema, tt.args.dataObjects)
@@ -5338,6 +5781,184 @@ func TestPostgresAdapter_FindOneAndUpdate(t *testing.T) {
 		}
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%q. PostgresAdapter.FindOneAndUpdate() = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestPostgresAdapter_UpsertOneObject(t *testing.T) {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	initialize := func(className string, schema types.M, objects []types.M) {
+		p.CreateClass(className, schema)
+		for _, object := range objects {
+			p.CreateObject(className, schema, object)
+		}
+	}
+	clean := func(className string) {
+		db.Exec(`DROP TABLE "` + className + `"`)
+		db.Exec(`DROP TABLE "_SCHEMA"`)
+	}
+	type args struct {
+		className   string
+		schema      types.M
+		query       types.M
+		update      types.M
+		dataObjects []types.M
+	}
+	tests := []struct {
+		name       string
+		args       args
+		want       types.M
+		wantErr    error
+		initialize func(className string, schema types.M, objects []types.M)
+		clean      func(className string)
+	}{
+		{
+			name: "1",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				query:  types.M{"key": "hi"},
+				update: types.M{"key2": "go"},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": "world"},
+					types.M{"key": "hi", "key2": "world"},
+				},
+			},
+			want:       types.M{"key": "hi", "key2": "go"},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "2",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				query:  types.M{"key": "haha"},
+				update: types.M{"key2": "go"},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": "world"},
+					types.M{"key": "hi", "key2": "world"},
+				},
+			},
+			want:       types.M{"key": "haha", "key2": "go"},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+	}
+	for _, tt := range tests {
+		tt.initialize(tt.args.className, tt.args.schema, tt.args.dataObjects)
+		err := p.UpsertOneObject(tt.args.className, tt.args.schema, tt.args.query, tt.args.update)
+		got, err := p.Find(tt.args.className, tt.args.schema, tt.args.query, types.M{})
+		tt.clean(tt.args.className)
+
+		if reflect.DeepEqual(err, tt.wantErr) == false {
+			t.Errorf("%q. PostgresAdapter.UpsertOneObject() error = %v, wantErr %v", tt.name, err, tt.wantErr)
+		}
+
+		if err != nil || len(got) != 1 || reflect.DeepEqual(got[0], tt.want) == false {
+			t.Errorf("%q. PostgresAdapter.UpsertOneObject() = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestPostgresAdapter_EnsureUniqueness(t *testing.T) {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	initialize := func(className string, schema types.M) {
+		p.CreateClass(className, schema)
+	}
+	clean := func(className string) {
+		db.Exec(`DROP TABLE "` + className + `"`)
+		db.Exec(`DROP TABLE "_SCHEMA"`)
+	}
+	type args struct {
+		className  string
+		schema     types.M
+		fieldNames []string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantErr    error
+		initialize func(className string, schema types.M)
+		clean      func(className string)
+	}{
+		{
+			name: "1",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				fieldNames: []string{"key"},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "2",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				fieldNames: []string{"key", "key2"},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "3",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				fieldNames: []string{"key"},
+			},
+			wantErr: nil,
+			initialize: func(className string, schema types.M) {
+				p.CreateClass(className, schema)
+				p.EnsureUniqueness(className, schema, []string{"key"})
+			},
+			clean: clean,
+		},
+	}
+	for _, tt := range tests {
+		tt.initialize(tt.args.className, tt.args.schema)
+		err := p.EnsureUniqueness(tt.args.className, tt.args.schema, tt.args.fieldNames)
+		tt.clean(tt.args.className)
+		if reflect.DeepEqual(err, tt.wantErr) == false {
+			t.Errorf("%q. PostgresAdapter.EnsureUniqueness() error = %v, wantErr %v", tt.name, err, tt.wantErr)
 		}
 	}
 }
