@@ -21,7 +21,7 @@ type Config struct {
 	AppID                            string   // 必填
 	MasterKey                        string   // 必填
 	ClientKey                        string   // 选填
-	JavascriptKey                    string   // 选填
+	JavaScriptKey                    string   // 选填
 	DotNetKey                        string   // 选填
 	RestAPIKey                       string   // 选填
 	AllowClientClassCreation         bool     // 是否允许客户端操作不存在的 class ，默认为 fasle 不允许操作
@@ -70,6 +70,11 @@ type Config struct {
 	MaxPasswordAge                   int      // 密码的最长使用时间，单位为天，取值大于等于 0 ，默认为 0 表示不设置最长使用时间
 	MaxPasswordHistory               int      // 最大密码历史个数，修改的密码不能与密码历史重复，取值范围： 0-20 ，默认为 0 表示不设置密码历史
 	UserSensitiveFields              []string // 用户敏感字段，按需删除，多个字段使用 | 删除，如： email|password
+	AnalyticsAdapter                 string   // 分析模块，可选：InfluxDB，默认使用空的分析模块
+	InfluxDBURL                      string   // InfluxDB 地址，仅在 AnalyticsAdapter=InfluxDB 时需要配置
+	InfluxDBUsername                 string   // InfluxDB 用户名，仅在 AnalyticsAdapter=InfluxDB 时需要配置
+	InfluxDBPassword                 string   // InfluxDB 密码，仅在 AnalyticsAdapter=InfluxDB 时需要配置
+	InfluxDBDatabaseName             string   // InfluxDB 数据库，仅在 AnalyticsAdapter=InfluxDB 时需要配置
 }
 
 var (
@@ -94,7 +99,7 @@ func parseConfig() {
 	TConfig.AppID = beego.AppConfig.String("AppID")
 	TConfig.MasterKey = beego.AppConfig.String("MasterKey")
 	TConfig.ClientKey = beego.AppConfig.String("ClientKey")
-	TConfig.JavascriptKey = beego.AppConfig.String("JavascriptKey")
+	TConfig.JavaScriptKey = beego.AppConfig.String("JavaScriptKey")
 	TConfig.DotNetKey = beego.AppConfig.String("DotNetKey")
 	TConfig.RestAPIKey = beego.AppConfig.String("RestAPIKey")
 	TConfig.AllowClientClassCreation = beego.AppConfig.DefaultBool("AllowClientClassCreation", false)
@@ -157,6 +162,12 @@ func parseConfig() {
 	for _, field := range strings.Split(beego.AppConfig.String("UserSensitiveFields"), "|") {
 		TConfig.UserSensitiveFields = append(TConfig.UserSensitiveFields, field)
 	}
+
+	TConfig.AnalyticsAdapter = beego.AppConfig.String("AnalyticsAdapter")
+	TConfig.InfluxDBURL = beego.AppConfig.String("InfluxDBURL")
+	TConfig.InfluxDBUsername = beego.AppConfig.String("InfluxDBUsername")
+	TConfig.InfluxDBPassword = beego.AppConfig.String("InfluxDBPassword")
+	TConfig.InfluxDBDatabaseName = beego.AppConfig.String("InfluxDBDatabaseName")
 }
 
 // Validate 校验用户参数合法性
@@ -170,6 +181,7 @@ func Validate() {
 	validateAccountLockoutPolicy()
 	validatePasswordPolicy()
 	validateCacheConfiguration()
+	validateAnalyticsConfiguration()
 }
 
 // validateApplicationConfiguration 校验应用相关参数
@@ -186,8 +198,8 @@ func validateApplicationConfiguration() {
 	if TConfig.MasterKey == "" {
 		log.Fatalln("MasterKey is required")
 	}
-	if TConfig.ClientKey == "" && TConfig.JavascriptKey == "" && TConfig.DotNetKey == "" && TConfig.RestAPIKey == "" {
-		log.Fatalln("ClientKey or JavascriptKey or DotNetKey or RestAPIKey is required")
+	if TConfig.ClientKey == "" && TConfig.JavaScriptKey == "" && TConfig.DotNetKey == "" && TConfig.RestAPIKey == "" {
+		log.Fatalln("ClientKey or JavaScriptKey or DotNetKey or RestAPIKey is required")
 	}
 }
 
@@ -315,6 +327,30 @@ func validateCacheConfiguration() {
 	}
 	if TConfig.SchemaCacheTTL < -1 {
 		log.Fatalln("SchemaCacheTTL should be -1 or 0 or an integer greater than 0")
+	}
+}
+
+// validateAnalyticsConfiguration 校验分析模块相关参数
+func validateAnalyticsConfiguration() {
+	adapter := TConfig.AnalyticsAdapter
+	switch adapter {
+	case "InfluxDB":
+		if TConfig.InfluxDBURL == "" {
+			log.Fatalln("InfluxDBURL is required")
+		}
+		if TConfig.InfluxDBUsername == "" {
+			log.Fatalln("InfluxDBUsername is required")
+		}
+		if TConfig.InfluxDBPassword == "" {
+			log.Fatalln("InfluxDBPassword is required")
+		}
+		if TConfig.InfluxDBDatabaseName == "" {
+			log.Fatalln("InfluxDBDatabaseName is required")
+		}
+	case "":
+		// 默认使用空实现
+	default:
+		log.Fatalln("Unsupported AnalyticsAdapter")
 	}
 }
 
