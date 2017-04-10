@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -91,6 +92,10 @@ func (p *PostgresAdapter) SetClassLevelPermissions(className string, CLPs types.
 
 // CreateClass 创建类
 func (p *PostgresAdapter) CreateClass(className string, schema types.M) (types.M, error) {
+	if schema == nil {
+		schema = types.M{}
+	}
+	schema["className"] = className
 	b, err := json.Marshal(schema)
 	if err != nil {
 		return nil, err
@@ -121,9 +126,9 @@ func (p *PostgresAdapter) createTable(className string, schema types.M) error {
 	}
 	valuesArray := types.S{}
 	patternsArray := []string{}
-	var fields types.M
-	if f := utils.M(schema["fields"]); f != nil {
-		fields = f
+	fields := utils.M(schema["fields"])
+	if fields == nil {
+		fields = types.M{}
 	}
 
 	if className == "_User" {
@@ -408,8 +413,8 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 	if schema == nil {
 		schema = types.M{}
 	}
-	if object == nil {
-		object = types.M{}
+	if len(object) == 0 {
+		return nil
 	}
 	schema = toPostgresSchema(schema)
 	object = handleDotFields(object)
@@ -419,6 +424,7 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 		return err
 	}
 
+	// 预处理 authData 字段，避免在遍历 map 并向其添加元素时造成的不稳定性
 	for fieldName := range object {
 		re := regexp.MustCompile(`^_auth_data_([a-zA-Z0-9_]+)$`)
 		authDataMatch := re.FindStringSubmatch(fieldName)
@@ -430,9 +436,11 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 			}
 			authData[provider] = object[fieldName]
 			delete(object, fieldName)
-			fieldName = "authData"
 			object["authData"] = authData
 		}
+	}
+
+	for fieldName := range object {
 		columnsArray = append(columnsArray, fieldName)
 
 		fields := utils.M(schema["fields"])
@@ -619,6 +627,10 @@ func (p *PostgresAdapter) GetAllClasses() ([]types.M, error) {
 
 // GetClass ...
 func (p *PostgresAdapter) GetClass(className string) (types.M, error) {
+	err := p.ensureSchemaCollectionExists()
+	if err != nil {
+		return nil, err
+	}
 	qs := `SELECT "schema" FROM "_SCHEMA" WHERE "className"=$1`
 	rows, err := p.db.Query(qs, className)
 	if err != nil {
@@ -643,10 +655,35 @@ func (p *PostgresAdapter) GetClass(className string) (types.M, error) {
 	return toParseSchema(schema), nil
 }
 
-// DeleteObjectsByQuery ...
+// DeleteObjectsByQuery 删除符合条件的所有对象
 func (p *PostgresAdapter) DeleteObjectsByQuery(className string, schema, query types.M) error {
-	// TODO
-	// buildWhereClause
+	where, err := buildWhereClause(schema, query, 1)
+	if err != nil {
+		return err
+	}
+
+	if len(query) == 0 {
+		where.pattern = "TRUE"
+	}
+
+	qs := fmt.Sprintf(`WITH deleted AS (DELETE FROM "%s" WHERE %s RETURNING *) SELECT count(*) FROM deleted`, className, where.pattern)
+	row := p.db.QueryRow(qs, where.values...)
+	var count int
+	err = row.Scan(&count)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			// 表不存在返回空
+			if e.Code == postgresRelationDoesNotExistError {
+				return errs.E(errs.ObjectNotFound, "Object not found.")
+			}
+		}
+		return err
+	}
+
+	if count == 0 {
+		return errs.E(errs.ObjectNotFound, "Object not found.")
+	}
+
 	return nil
 }
 
@@ -771,229 +808,363 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 			object[field] = *resultValues[i]
 		}
 
-		for fieldName, v := range fields {
-			tp := utils.M(v)
-			if tp == nil {
-				continue
-			}
-			objectType := utils.S(tp["type"])
-
-			if objectType == "Pointer" && object[fieldName] != nil {
-				if v, ok := object[fieldName].([]byte); ok {
-					object[fieldName] = types.M{
-						"objectId":  string(v),
-						"__type":    "Pointer",
-						"className": tp["targetClass"],
-					}
-				} else {
-					object[fieldName] = nil
-				}
-			} else if objectType == "Relation" {
-				object[fieldName] = types.M{
-					"__type":    "Relation",
-					"className": tp["targetClass"],
-				}
-			} else if objectType == "GeoPoint" && object[fieldName] != nil {
-				// object[fieldName] = (10,20) (longitude, latitude)
-				resString := ""
-				if v, ok := object[fieldName].([]byte); ok {
-					resString = string(v)
-				}
-				if len(resString) < 5 {
-					object[fieldName] = nil
-					continue
-				}
-				pointString := strings.Split(resString[1:len(resString)-1], ",")
-				if len(pointString) != 2 {
-					object[fieldName] = nil
-					continue
-				}
-				longitude, err := strconv.ParseFloat(pointString[0], 64)
-				if err != nil {
-					return nil, err
-				}
-				latitude, err := strconv.ParseFloat(pointString[1], 64)
-				if err != nil {
-					return nil, err
-				}
-				object[fieldName] = types.M{
-					"__type":    "GeoPoint",
-					"longitude": longitude,
-					"latitude":  latitude,
-				}
-			} else if objectType == "File" && object[fieldName] != nil {
-				if v, ok := object[fieldName].([]byte); ok {
-					object[fieldName] = types.M{
-						"__type": "File",
-						"name":   string(v),
-					}
-				} else {
-					object[fieldName] = nil
-				}
-			} else if objectType == "String" && object[fieldName] != nil {
-				if v, ok := object[fieldName].([]byte); ok {
-					object[fieldName] = string(v)
-				} else {
-					object[fieldName] = nil
-				}
-			} else if objectType == "Object" && object[fieldName] != nil {
-				if v, ok := object[fieldName].([]byte); ok {
-					var r types.M
-					err = json.Unmarshal(v, &r)
-					if err != nil {
-						return nil, err
-					}
-					object[fieldName] = r
-				} else {
-					object[fieldName] = nil
-				}
-			} else if objectType == "Array" && object[fieldName] != nil {
-				if fieldName == "_rperm" || fieldName == "_wperm" {
-					continue
-				}
-				if v, ok := object[fieldName].([]byte); ok {
-					var r types.S
-					err = json.Unmarshal(v, &r)
-					if err != nil {
-						return nil, err
-					}
-					object[fieldName] = r
-				} else {
-					object[fieldName] = nil
-				}
-			}
-		}
-
-		if object["_rperm"] != nil {
-			// object["_rperm"] = {hello,world}
-			// 在添加 _rperm 时已保证值里不含 ','
-			resString := ""
-			if v, ok := object["_rperm"].([]byte); ok {
-				resString = string(v)
-			}
-			if len(resString) < 2 {
-				object["_rperm"] = nil
-			} else {
-				keys := strings.Split(resString[1:len(resString)-1], ",")
-				rperm := make(types.S, len(keys))
-				for i, k := range keys {
-					rperm[i] = k
-				}
-				object["_rperm"] = rperm
-			}
-		}
-
-		if object["_wperm"] != nil {
-			// object["_wperm"] = {hello,world}
-			// 在添加 _wperm 时已保证值里不含 ','
-			resString := ""
-			if v, ok := object["_wperm"].([]byte); ok {
-				resString = string(v)
-			}
-			if len(resString) < 2 {
-				object["_wperm"] = nil
-			} else {
-				keys := strings.Split(resString[1:len(resString)-1], ",")
-				wperm := make(types.S, len(keys))
-				for i, k := range keys {
-					wperm[i] = k
-				}
-				object["_wperm"] = wperm
-			}
-		}
-
-		if object["createdAt"] != nil {
-			if v, ok := object["createdAt"].(time.Time); ok {
-				object["createdAt"] = utils.TimetoString(v)
-			} else {
-				object["createdAt"] = nil
-			}
-		}
-
-		if object["updatedAt"] != nil {
-			if v, ok := object["updatedAt"].(time.Time); ok {
-				object["updatedAt"] = utils.TimetoString(v)
-			} else {
-				object["updatedAt"] = nil
-			}
-		}
-
-		if object["expiresAt"] != nil {
-			object["expiresAt"] = valueToDate(object["expiresAt"])
-		}
-
-		if object["_email_verify_token_expires_at"] != nil {
-			object["_email_verify_token_expires_at"] = valueToDate(object["_email_verify_token_expires_at"])
-		}
-
-		if object["_account_lockout_expires_at"] != nil {
-			object["_account_lockout_expires_at"] = valueToDate(object["_account_lockout_expires_at"])
-		}
-
-		if object["_perishable_token_expires_at"] != nil {
-			object["_perishable_token_expires_at"] = valueToDate(object["_perishable_token_expires_at"])
-		}
-
-		if object["_password_changed_at"] != nil {
-			object["_password_changed_at"] = valueToDate(object["_password_changed_at"])
-		}
-
-		for fieldName := range object {
-			if object[fieldName] == nil {
-				delete(object, fieldName)
-			}
-			if v, ok := object[fieldName].(time.Time); ok {
-				object[fieldName] = types.M{
-					"__type": "Date",
-					"iso":    utils.TimetoString(v),
-				}
-			}
+		object, err = postgresObjectToParseObject(object, fields)
+		if err != nil {
+			return nil, err
 		}
 
 		results = append(results, object)
 	}
 
-	// buildWhereClause
 	return results, nil
 }
 
 // Count ...
 func (p *PostgresAdapter) Count(className string, schema, query types.M) (int, error) {
-	// TODO
-	// buildWhereClause
-	return 0, nil
+	where, err := buildWhereClause(schema, query, 1)
+	if err != nil {
+		return 0, err
+	}
+
+	wherePattern := ""
+	if len(where.pattern) > 0 {
+		wherePattern = `WHERE ` + where.pattern
+	}
+
+	qs := fmt.Sprintf(`SELECT count(*) FROM "%s" %s`, className, wherePattern)
+	rows, err := p.db.Query(qs, where.values...)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			if e.Code == postgresRelationDoesNotExistError {
+				return 0, nil
+			}
+		}
+		return 0, err
+	}
+	var count int
+	if rows.Next() {
+		err = rows.Scan(&count)
+		if err != nil {
+			return 0, nil
+		}
+	}
+
+	return count, nil
 }
 
 // UpdateObjectsByQuery ...
 func (p *PostgresAdapter) UpdateObjectsByQuery(className string, schema, query, update types.M) error {
-	// TODO
-	// buildWhereClause
-	// jsonObjectSetKey
-	// arrayAdd
-	// arrayAddUnique
-	// arrayRemove
-
-	return nil
+	_, err := p.FindOneAndUpdate(className, schema, query, update)
+	return err
 }
 
 // FindOneAndUpdate ...
 func (p *PostgresAdapter) FindOneAndUpdate(className string, schema, query, update types.M) (types.M, error) {
-	// TODO
-	// UpdateObjectsByQuery
-	return nil, nil
+	updatePatterns := []string{}
+	values := types.S{}
+	index := 1
+
+	if schema == nil {
+		schema = types.M{}
+	}
+	schema = toPostgresSchema(schema)
+
+	fields := utils.M(schema["fields"])
+	if fields == nil {
+		fields = types.M{}
+	}
+
+	originalUpdate := utils.CopyMapM(update)
+	update = handleDotFields(update)
+
+	for fieldName, v := range update {
+		re := regexp.MustCompile(`^_auth_data_([a-zA-Z0-9_]+)$`)
+		authDataMatch := re.FindStringSubmatch(fieldName)
+		if authDataMatch != nil && len(authDataMatch) == 2 {
+			provider := authDataMatch[1]
+			delete(update, fieldName)
+			authData := utils.M(update["authData"])
+			if authData == nil {
+				authData = types.M{}
+			}
+			authData[provider] = v
+			update["authData"] = authData
+		}
+	}
+
+	for fieldName, fieldValue := range update {
+		if fieldValue == nil {
+			updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = NULL`, fieldName))
+			continue
+		}
+
+		if fieldName == "authData" {
+			generate := func(jsonb, key, value string) string {
+				return fmt.Sprintf(`json_object_set_key(COALESCE(%s, '{}'::jsonb), %s, %s)::jsonb`, jsonb, key, value)
+			}
+			lastKey := fmt.Sprintf(`"%s"`, fieldName)
+			authData := utils.M(fieldValue)
+			if authData == nil {
+				continue
+			}
+			for key, value := range authData {
+				lastKey = generate(lastKey, fmt.Sprintf(`$%d::text`, index), fmt.Sprintf(`$%d::jsonb`, index+1))
+				index = index + 2
+				if value != nil {
+					if v := utils.M(value); v != nil && utils.S(v["__op"]) == "Delete" {
+						value = nil
+					} else {
+						b, err := json.Marshal(v)
+						if err != nil {
+							return nil, err
+						}
+						value = string(b)
+					}
+				}
+				values = append(values, key, value)
+			}
+			updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = %s`, fieldName, lastKey))
+			continue
+		}
+
+		if fieldName == "updatedAt" {
+			updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+			values = append(values, fieldValue)
+			index = index + 1
+			continue
+		}
+
+		switch fieldValue.(type) {
+		case string, bool, float64, int:
+			updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+			values = append(values, fieldValue)
+			index = index + 1
+			continue
+		case time.Time:
+			updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+			values = append(values, utils.TimetoString(fieldValue.(time.Time)))
+			index = index + 1
+			continue
+		}
+
+		if object := utils.M(fieldValue); object != nil {
+			switch utils.S(object["__op"]) {
+			case "Increment":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = COALESCE("%s", 0) + $%d`, fieldName, fieldName, index))
+				values = append(values, object["amount"])
+				index = index + 1
+				continue
+			case "Add":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = array_add(COALESCE("%s", '[]'::jsonb), $%d::jsonb)`, fieldName, fieldName, index))
+				b, err := json.Marshal(object["objects"])
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, string(b))
+				index = index + 1
+				continue
+			case "Delete":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+				values = append(values, nil)
+				index = index + 1
+				continue
+			case "Remove":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = array_remove(COALESCE("%s", '[]'::jsonb), $%d::jsonb)`, fieldName, fieldName, index))
+				b, err := json.Marshal(object["objects"])
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, string(b))
+				index = index + 1
+				continue
+			case "AddUnique":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = array_add_unique(COALESCE("%s", '[]'::jsonb), $%d::jsonb)`, fieldName, fieldName, index))
+				b, err := json.Marshal(object["objects"])
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, string(b))
+				index = index + 1
+				continue
+			}
+
+			switch utils.S(object["__type"]) {
+			case "Pointer":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+				values = append(values, object["objectId"])
+				index = index + 1
+				continue
+			case "Date", "File":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+				values = append(values, toPostgresValue(object))
+				index = index + 1
+				continue
+			case "GeoPoint":
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = POINT($%d, $%d)`, fieldName, index, index+1))
+				values = append(values, object["longitude"], object["latitude"])
+				index = index + 2
+				continue
+			case "Relation":
+				continue
+			}
+
+			if tp := utils.M(fields[fieldName]); tp != nil && utils.S(tp["type"]) == "Object" {
+				keysToDelete := []string{}
+				for k, v := range originalUpdate {
+					if o := utils.M(v); o != nil && utils.S(o["__op"]) == "Delete" {
+						if keys := strings.Split(k, "."); len(keys) == 2 && keys[0] == fieldName {
+							keysToDelete = append(keysToDelete, keys[1])
+						}
+					}
+				}
+
+				deletePatterns := ""
+				for _, k := range keysToDelete {
+					deletePatterns = deletePatterns + fmt.Sprintf(` - '%s'`, k)
+				}
+
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = ( COALESCE("%s", '{}'::jsonb) %s || $%d::jsonb )`, fieldName, fieldName, deletePatterns, index))
+				b, err := json.Marshal(object)
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, string(b))
+				index = index + 1
+				continue
+			}
+		}
+
+		if array := utils.A(fieldValue); array != nil {
+			if tp := utils.M(fields[fieldName]); tp != nil && utils.S(tp["type"]) == "Array" {
+				expectedType, err := parseTypeToPostgresType(tp)
+				if err != nil {
+					return nil, err
+				}
+
+				b, err := json.Marshal(fieldValue)
+				if err != nil {
+					return nil, err
+				}
+
+				if expectedType == "text[]" {
+					// '[' => '{'
+					if b[0] == 91 {
+						b[0] = 123
+					}
+					// ']' => '}'
+					if len(b) > 0 && b[len(b)-1] == 93 {
+						b[len(b)-1] = 125
+					}
+					updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d::text[]`, fieldName, index))
+				} else {
+					updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d::jsonb`, fieldName, index))
+				}
+
+				values = append(values, string(b))
+				index = index + 1
+				continue
+			}
+		}
+
+		b, _ := json.Marshal(fieldValue)
+		return nil, errs.E(errs.OperationForbidden, "Postgres doesn't support update "+string(b)+" yet")
+	}
+
+	where, err := buildWhereClause(schema, query, index)
+	if err != nil {
+		return nil, err
+	}
+	values = append(values, where.values...)
+
+	// TODO 需要添加限制，只更新一条，UpdateObjectsByQuery 时更新多条
+	qs := fmt.Sprintf(`UPDATE "%s" SET %s WHERE %s RETURNING *`, className, strings.Join(updatePatterns, ","), where.pattern)
+	rows, err := p.db.Query(qs, values...)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			// 表不存在返回空
+			if e.Code == postgresRelationDoesNotExistError {
+				return nil, errs.E(errs.ObjectNotFound, "Object not found.")
+			}
+		}
+		return nil, err
+	}
+
+	object := types.M{}
+	if rows.Next() {
+		resultColumns, err := rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+
+		resultValues := []*interface{}{}
+		values := types.S{}
+		for i := 0; i < len(resultColumns); i++ {
+			var v interface{}
+			resultValues = append(resultValues, &v)
+			values = append(values, &v)
+		}
+		err = rows.Scan(values...)
+		if err != nil {
+			return nil, err
+		}
+		for i, field := range resultColumns {
+			object[field] = *resultValues[i]
+		}
+
+		object, err = postgresObjectToParseObject(object, fields)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return object, nil
 }
 
-// UpsertOneObject ...
+// UpsertOneObject 仅用于 config 和 hooks
 func (p *PostgresAdapter) UpsertOneObject(className string, schema, query, update types.M) error {
-	// TODO
-	// createObject
-	// FindOneAndUpdate
+	object, err := p.FindOneAndUpdate(className, schema, query, update)
+	if err != nil {
+		return err
+	}
+	if len(object) == 0 {
+		createValue := types.M{}
+		for k, v := range query {
+			createValue[k] = v
+		}
+		for k, v := range update {
+			createValue[k] = v
+		}
+
+		err = p.CreateObject(className, schema, createValue)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// EnsureUniqueness ...
+// EnsureUniqueness 创建索引
 func (p *PostgresAdapter) EnsureUniqueness(className string, schema types.M, fieldNames []string) error {
-	// TODO
+	sort.Sort(sort.StringSlice(fieldNames))
+	constraintName := `unique_` + strings.Join(fieldNames, "_")
+	constraintPatterns := []string{}
+	for _, fieldName := range fieldNames {
+		constraintPatterns = append(constraintPatterns, `"`+fieldName+`"`)
+	}
+
+	qs := fmt.Sprintf(`ALTER TABLE "%s" ADD CONSTRAINT "%s" UNIQUE (%s)`, className, constraintName, strings.Join(constraintPatterns, ","))
+	_, err := p.db.Exec(qs)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			if e.Code == postgresDuplicateRelationError && strings.Contains(e.Message, constraintName) {
+				// 索引已存在，忽略错误
+			} else if e.Code == postgresUniqueIndexViolationError && strings.Contains(e.Message, constraintName) {
+				return errs.E(errs.DuplicateValue, "A duplicate value for a field with unique values was provided")
+			}
+		} else {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1053,6 +1224,191 @@ func (p *PostgresAdapter) PerformInitialization(options types.M) error {
 	}
 
 	return nil
+}
+
+func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
+	if len(object) == 0 {
+		return object, nil
+	}
+	for fieldName, v := range fields {
+		tp := utils.M(v)
+		if tp == nil {
+			continue
+		}
+		objectType := utils.S(tp["type"])
+
+		if objectType == "Pointer" && object[fieldName] != nil {
+			if v, ok := object[fieldName].([]byte); ok {
+				object[fieldName] = types.M{
+					"objectId":  string(v),
+					"__type":    "Pointer",
+					"className": tp["targetClass"],
+				}
+			} else {
+				object[fieldName] = nil
+			}
+		} else if objectType == "Relation" {
+			object[fieldName] = types.M{
+				"__type":    "Relation",
+				"className": tp["targetClass"],
+			}
+		} else if objectType == "GeoPoint" && object[fieldName] != nil {
+			// object[fieldName] = (10,20) (longitude, latitude)
+			resString := ""
+			if v, ok := object[fieldName].([]byte); ok {
+				resString = string(v)
+			}
+			if len(resString) < 5 {
+				object[fieldName] = nil
+				continue
+			}
+			pointString := strings.Split(resString[1:len(resString)-1], ",")
+			if len(pointString) != 2 {
+				object[fieldName] = nil
+				continue
+			}
+			longitude, err := strconv.ParseFloat(pointString[0], 64)
+			if err != nil {
+				return nil, err
+			}
+			latitude, err := strconv.ParseFloat(pointString[1], 64)
+			if err != nil {
+				return nil, err
+			}
+			object[fieldName] = types.M{
+				"__type":    "GeoPoint",
+				"longitude": longitude,
+				"latitude":  latitude,
+			}
+		} else if objectType == "File" && object[fieldName] != nil {
+			if v, ok := object[fieldName].([]byte); ok {
+				object[fieldName] = types.M{
+					"__type": "File",
+					"name":   string(v),
+				}
+			} else {
+				object[fieldName] = nil
+			}
+		} else if objectType == "String" && object[fieldName] != nil {
+			if v, ok := object[fieldName].([]byte); ok {
+				object[fieldName] = string(v)
+			} else {
+				object[fieldName] = nil
+			}
+		} else if objectType == "Object" && object[fieldName] != nil {
+			if v, ok := object[fieldName].([]byte); ok {
+				var r types.M
+				err := json.Unmarshal(v, &r)
+				if err != nil {
+					return nil, err
+				}
+				object[fieldName] = r
+			} else {
+				object[fieldName] = nil
+			}
+		} else if objectType == "Array" && object[fieldName] != nil {
+			if fieldName == "_rperm" || fieldName == "_wperm" {
+				continue
+			}
+			if v, ok := object[fieldName].([]byte); ok {
+				var r types.S
+				err := json.Unmarshal(v, &r)
+				if err != nil {
+					return nil, err
+				}
+				object[fieldName] = r
+			} else {
+				object[fieldName] = nil
+			}
+		}
+	}
+
+	if object["_rperm"] != nil {
+		// object["_rperm"] = {hello,world}
+		// 在添加 _rperm 时已保证值里不含 ','
+		resString := ""
+		if v, ok := object["_rperm"].([]byte); ok {
+			resString = string(v)
+		}
+		if len(resString) < 2 {
+			object["_rperm"] = nil
+		} else {
+			keys := strings.Split(resString[1:len(resString)-1], ",")
+			rperm := make(types.S, len(keys))
+			for i, k := range keys {
+				rperm[i] = k
+			}
+			object["_rperm"] = rperm
+		}
+	}
+
+	if object["_wperm"] != nil {
+		// object["_wperm"] = {hello,world}
+		// 在添加 _wperm 时已保证值里不含 ','
+		resString := ""
+		if v, ok := object["_wperm"].([]byte); ok {
+			resString = string(v)
+		}
+		if len(resString) < 2 {
+			object["_wperm"] = nil
+		} else {
+			keys := strings.Split(resString[1:len(resString)-1], ",")
+			wperm := make(types.S, len(keys))
+			for i, k := range keys {
+				wperm[i] = k
+			}
+			object["_wperm"] = wperm
+		}
+	}
+
+	if object["createdAt"] != nil {
+		if v, ok := object["createdAt"].(time.Time); ok {
+			object["createdAt"] = utils.TimetoString(v)
+		} else {
+			object["createdAt"] = nil
+		}
+	}
+
+	if object["updatedAt"] != nil {
+		if v, ok := object["updatedAt"].(time.Time); ok {
+			object["updatedAt"] = utils.TimetoString(v)
+		} else {
+			object["updatedAt"] = nil
+		}
+	}
+
+	if object["expiresAt"] != nil {
+		object["expiresAt"] = valueToDate(object["expiresAt"])
+	}
+
+	if object["_email_verify_token_expires_at"] != nil {
+		object["_email_verify_token_expires_at"] = valueToDate(object["_email_verify_token_expires_at"])
+	}
+
+	if object["_account_lockout_expires_at"] != nil {
+		object["_account_lockout_expires_at"] = valueToDate(object["_account_lockout_expires_at"])
+	}
+
+	if object["_perishable_token_expires_at"] != nil {
+		object["_perishable_token_expires_at"] = valueToDate(object["_perishable_token_expires_at"])
+	}
+
+	if object["_password_changed_at"] != nil {
+		object["_password_changed_at"] = valueToDate(object["_password_changed_at"])
+	}
+
+	for fieldName := range object {
+		if object[fieldName] == nil {
+			delete(object, fieldName)
+		}
+		if v, ok := object[fieldName].(time.Time); ok {
+			object[fieldName] = types.M{
+				"__type": "Date",
+				"iso":    utils.TimetoString(v),
+			}
+		}
+	}
+	return object, nil
 }
 
 var parseToPosgresComparator = map[string]string{
@@ -1221,7 +1577,9 @@ func handleDotFields(object types.M) types.M {
 		currentObj := object
 		for i, next := range components {
 			if i == (len(components) - 1) {
-				currentObj[next] = value
+				if value != nil {
+					currentObj[next] = value
+				}
 				break
 			}
 			obj := currentObj[next]
@@ -1277,8 +1635,6 @@ type whereClause struct {
 }
 
 func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
-	// arrayContainsAll
-	// arrayContains
 	patterns := []string{}
 	values := types.S{}
 	sorts := []string{}
@@ -1320,17 +1676,11 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 				}
 			}
 			name := strings.Join(components, "->")
-			var value interface{}
-			if _, ok := fieldValue.(string); ok {
-				value = fieldValue
-			} else {
-				b, err := json.Marshal(fieldValue)
-				if err != nil {
-					return nil, err
-				}
-				value = string(b)
+			b, err := json.Marshal(fieldValue)
+			if err != nil {
+				return nil, err
 			}
-			patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, value))
+			patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
 		} else if _, ok := fieldValue.(string); ok {
 			patterns = append(patterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
 			values = append(values, fieldValue)
@@ -1382,22 +1732,27 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					j, _ := json.Marshal(types.S{v})
 					value["$ne"] = string(j)
 					patterns = append(patterns, fmt.Sprintf(`NOT array_contains("%s", $%d)`, fieldName, index))
+					values = append(values, value["$ne"])
+					index = index + 1
 				} else {
 					if v == nil {
-						patterns = append(patterns, fmt.Sprintf(`"%s" <> $%d`, fieldName, index))
+						patterns = append(patterns, fmt.Sprintf(`"%s" IS NOT NULL`, fieldName))
 					} else {
 						patterns = append(patterns, fmt.Sprintf(`("%s" <> $%d OR "%s" IS NULL)`, fieldName, index, fieldName))
+						values = append(values, value["$ne"])
+						index = index + 1
 					}
 				}
-
-				values = append(values, value["$ne"])
-				index = index + 1
 			}
 
 			if v, ok := value["$eq"]; ok {
-				patterns = append(patterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
-				values = append(values, v)
-				index = index + 1
+				if v == nil {
+					patterns = append(patterns, fmt.Sprintf(`"%s" IS NULL`, fieldName))
+				} else {
+					patterns = append(patterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+					values = append(values, v)
+					index = index + 1
+				}
 			}
 
 			inArray := utils.A(value["$in"])
@@ -1557,6 +1912,10 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					index = index + 1
 				}
 			}
+		}
+
+		if fieldValue == nil {
+			patterns = append(patterns, fmt.Sprintf(`"%s" IS NULL`, fieldName))
 		}
 
 		if initialPatternsLength == len(patterns) {

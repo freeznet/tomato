@@ -11,6 +11,7 @@ import (
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/storage"
 	"github.com/freeznet/tomato/storage/mongo"
+	"github.com/freeznet/tomato/storage/postgres"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
 )
@@ -26,7 +27,14 @@ var schemaPromise *Schema
 
 // init 初始化 Mongo 适配器
 func init() {
-	Adapter = mongo.NewMongoAdapter("tomato", storage.OpenMongoDB())
+	if config.TConfig.DatabaseType == "MongoDB" {
+		Adapter = mongo.NewMongoAdapter("tomato", storage.OpenMongoDB())
+	} else if config.TConfig.DatabaseType == "PostgreSQL" {
+		Adapter = postgres.NewPostgresAdapter("tomato", storage.OpenPostgreSQL())
+	} else {
+		// 默认连接 MongoDB
+		Adapter = mongo.NewMongoAdapter("tomato", storage.OpenMongoDB())
+	}
 	schemaCache = cache.NewSchemaCache(config.TConfig.SchemaCacheTTL, config.TConfig.EnableSingleSchemaCache)
 	TomatoDBController = &DBController{}
 }
@@ -271,11 +279,11 @@ var specialKeysForUpdate = map[string]bool{
 // options 中的参数包括：acl、many、upsert
 // skipSanitization 默认为 false
 func (d *DBController) Update(className string, query, update, options types.M, skipSanitization bool) (types.M, error) {
-	if query == nil {
+	if len(query) == 0 {
 		return types.M{}, nil
 	}
-	if update == nil {
-		update = types.M{}
+	if len(update) == 0 {
+		return types.M{}, nil
 	}
 	if options == nil {
 		options = types.M{}
@@ -641,16 +649,14 @@ func (d *DBController) ValidateObject(className string, object, query, options t
 		isMaster = true
 	}
 
-	if isMaster {
-		return nil
+	if !isMaster {
+		err := d.canAddField(schema, className, object, aclGroup)
+		if err != nil {
+			return err
+		}
+	err := schema.validateObject(className, object, query)
 	}
 
-	err := d.canAddField(schema, className, object, aclGroup)
-	if err != nil {
-		return err
-	}
-
-	err = schema.validateObject(className, object, query)
 	if err != nil {
 		return err
 	}
@@ -662,6 +668,10 @@ func (d *DBController) ValidateObject(className string, object, query, options t
 func (d *DBController) LoadSchema(options types.M) *Schema {
 	if options == nil {
 		options = types.M{"clearCache": false}
+	}
+	if c, ok := options["clearCache"].(bool); ok && c {
+		schemaPromise = Load(Adapter, schemaCache, options)
+		return schemaPromise
 	}
 	if schemaPromise == nil {
 		schemaPromise = Load(Adapter, schemaCache, options)
@@ -1173,6 +1183,7 @@ func (d *DBController) DeleteSchema(className string) error {
 			}
 		}
 	}
+	d.LoadSchema(types.M{"clearCache": true})
 	return nil
 }
 
