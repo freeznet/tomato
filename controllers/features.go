@@ -1,6 +1,9 @@
 package controllers
 
-import "github.com/freeznet/tomato/types"
+import (
+	"github.com/lfq7413/freeznet/config"
+	"github.com/lfq7413/freeznet/types"
+)
 
 // FeaturesController ...
 type FeaturesController struct {
@@ -38,9 +41,9 @@ func (f *FeaturesController) HandleGet() {
 			"from":  true,
 		},
 		"push": types.M{
-			"immediatePush":  true,
+			"immediatePush":  config.TConfig.PushAdapter != "",
 			"scheduledPush":  false,
-			"storedPushData": true,
+			"storedPushData": config.TConfig.PushAdapter != "",
 			"pushAudiences":  false,
 		},
 		"schemas": types.M{
