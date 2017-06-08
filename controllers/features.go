@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"github.com/lfq7413/freeznet/config"
-	"github.com/lfq7413/freeznet/types"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/types"
 )
 
 // FeaturesController ...

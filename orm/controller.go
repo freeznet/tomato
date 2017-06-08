@@ -654,8 +654,8 @@ func (d *DBController) ValidateObject(className string, object, query, options t
 		if err != nil {
 			return err
 		}
-	err := schema.validateObject(className, object, query)
 	}
+	err := schema.validateObject(className, object, query)
 
 	if err != nil {
 		return err
