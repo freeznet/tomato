@@ -46,9 +46,10 @@ type Config struct {
 	TencentAppID                     string   // 腾讯云存储 AppID ，仅在 FileAdapter=Tencent 时需要配置
 	TencentSecretID                  string   // 腾讯云存储 SecretID ，仅在 FileAdapter=Tencent 时需要配置
 	TencentSecretKey                 string   // 腾讯云存储 SecretKey ，仅在 FileAdapter=Tencent 时需要配置
-	PushAdapter                      string   // 推送模块
+	PushAdapter                      string   // 推送模块，可选：FCM，默认为 tomato
 	PushChannel                      string   // 推送通道
 	PushBatchSize                    int      // 批量推送的大小
+	ScheduledPush                    bool     // 是否有推送调度器
 	LiveQueryClasses                 string   // LiveQuery 支持的 classe ，多个 class 使用 | 隔开，如： classeA|classeB|classeC
 	PublisherType                    string   // 发布者类型，可选：Redis ，默认使用自带的 EventEmitter
 	PublisherURL                     string   // 发布者地址， PublisherType=Redis 时必填
@@ -78,10 +79,14 @@ type Config struct {
 	InfluxDBPassword                 string   // InfluxDB 密码，仅在 AnalyticsAdapter=InfluxDB 时需要配置
 	InfluxDBDatabaseName             string   // InfluxDB 数据库，仅在 AnalyticsAdapter=InfluxDB 时需要配置
 	InvalidLink                      string   // 自定义页面地址，无效链接页面
+	InvalidVerificationLink          string   // 自定义页面地址，无效验证链接页面
+	LinkSendSuccess                  string   // 自定义页面地址，发送成功页面
+	LinkSendFail                     string   // 自定义页面地址，发送失败页面
 	VerifyEmailSuccess               string   // 自定义页面地址，验证邮箱成功页面
 	ChoosePassword                   string   // 自定义页面地址，修改密码页面
 	PasswordResetSuccess             string   // 自定义页面地址，密码重置成功页面
 	ParseFrameURL                    string   // 自定义页面地址，用于呈现验证 Email 页面和密码重置页面
+	FCMServerKey                     string   // FCM Server Key
 }
 
 var (
@@ -184,6 +189,9 @@ func parseConfig() {
 
 	TConfig.PushChannel = beego.AppConfig.String("PushChannel")
 	TConfig.PushBatchSize = beego.AppConfig.DefaultInt("PushBatchSize", 0)
+	TConfig.ScheduledPush = beego.AppConfig.DefaultBool("ScheduledPush", false)
+
+	TConfig.FCMServerKey = beego.AppConfig.String("FCMServerKey")
 }
 
 // Validate 校验用户参数合法性
@@ -403,6 +411,30 @@ func InvalidLinkURL() string {
 		return TConfig.InvalidLink
 	}
 	return TConfig.ServerURL + `/apps/invalid_link`
+}
+
+// InvalidVerificationLinkURL ...
+func InvalidVerificationLinkURL() string {
+	if TConfig.InvalidVerificationLink != "" {
+		return TConfig.InvalidVerificationLink
+	}
+	return TConfig.ServerURL + `/apps/invalid_verification_link`
+}
+
+// LinkSendSuccessURL ...
+func LinkSendSuccessURL() string {
+	if TConfig.LinkSendSuccess != "" {
+		return TConfig.LinkSendSuccess
+	}
+	return TConfig.ServerURL + `/apps/link_send_success`
+}
+
+// LinkSendFailURL ...
+func LinkSendFailURL() string {
+	if TConfig.LinkSendFail != "" {
+		return TConfig.LinkSendFail
+	}
+	return TConfig.ServerURL + `/apps/link_send_fail`
 }
 
 // VerifyEmailSuccessURL ...

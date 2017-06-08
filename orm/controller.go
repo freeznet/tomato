@@ -93,6 +93,9 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 			op = "find"
 		}
 	}
+	if _, ok := options["count"]; ok {
+		op = "count"
+	}
 
 	classExists := true
 
@@ -1260,17 +1263,31 @@ func (d *DBController) addPointerPermissions(schema *Schema, className string, o
 // PerformInitialization 初始化数据库索引
 func (d *DBController) PerformInitialization() {
 	requiredUserFields := types.M{}
-	defaultUserColumns := types.M{}
+	requiredRoleFields := types.M{}
+
+	fields := types.M{}
 	for k, v := range DefaultColumns["_Default"] {
-		defaultUserColumns[k] = v
+		fields[k] = v
 	}
 	for k, v := range DefaultColumns["_User"] {
-		defaultUserColumns[k] = v
+		fields[k] = v
 	}
-	requiredUserFields["fields"] = defaultUserColumns
+	requiredUserFields["fields"] = fields
+
+	fields = types.M{}
+	for k, v := range DefaultColumns["_Default"] {
+		fields[k] = v
+	}
+	for k, v := range DefaultColumns["_Role"] {
+		fields[k] = v
+	}
+	requiredRoleFields["fields"] = fields
+
 	d.LoadSchema(nil).EnforceClassExists("_User")
+	d.LoadSchema(nil).EnforceClassExists("_Role")
 	Adapter.EnsureUniqueness("_User", requiredUserFields, []string{"username"})
 	Adapter.EnsureUniqueness("_User", requiredUserFields, []string{"email"})
+	Adapter.EnsureUniqueness("_Role", requiredRoleFields, []string{"name"})
 	Adapter.PerformInitialization(types.M{"VolatileClassesSchemas": volatileClassesSchemas()})
 }
 
@@ -1338,19 +1355,71 @@ func validateQuery(query types.M) error {
 	}
 
 	if or, ok := query["$or"]; ok {
+		var orArr []types.M
 		if arr := utils.A(or); arr != nil {
-			for _, a := range arr {
+			orArr = make([]types.M, len(arr))
+			for i, a := range arr {
 				subQuery := utils.M(a)
 				if subQuery == nil {
 					return errs.E(errs.InvalidQuery, "Bad $or format - invalid sub query.")
 				}
-				err := validateQuery(subQuery)
-				if err != nil {
-					return err
-				}
+				orArr[i] = subQuery
 			}
 		} else {
 			return errs.E(errs.InvalidQuery, "Bad $or format - use an array value.")
+		}
+
+		/* In MongoDB, $or queries which are not alone at the top level of the
+		 * query can not make efficient use of indexes due to a long standing
+		 * bug known as SERVER-13732.
+		 *
+		 * This block restructures queries in which $or is not the sole top
+		 * level element by moving all other top-level predicates inside every
+		 * subdocument of the $or predicate, allowing MongoDB's query planner
+		 * to make full use of the most relevant indexes.
+		 *
+		 * EG:      {$or: [{a: 1}, {a: 2}], b: 2}
+		 * Becomes: {$or: [{a: 1, b: 2}, {a: 2, b: 2}]}
+		 *
+		 * The only exceptions are $near and $nearSphere operators, which are
+		 * constrained to only 1 operator per query. As a result, these ops
+		 * remain at the top level
+		 *
+		 * https://jira.mongodb.org/browse/SERVER-13732
+		 * https://github.com/parse-community/parse-server/issues/3767
+		 */
+		for key := range query {
+			if key == "$or" {
+				continue
+			}
+			noCollisions := true
+			for _, subq := range orArr {
+				if _, ok := subq[key]; ok {
+					noCollisions = false
+					break
+				}
+			}
+			hasNears := false
+			if obj := utils.M(query[key]); obj != nil {
+				if _, ok := obj["$nearSphere"]; ok {
+					hasNears = true
+				} else if _, ok := obj["$near"]; ok {
+					hasNears = true
+				}
+			}
+			if noCollisions && !hasNears {
+				for _, subquery := range orArr {
+					subquery[key] = query[key]
+				}
+				delete(query, key)
+			}
+		}
+
+		for _, subQuery := range orArr {
+			err := validateQuery(subQuery)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

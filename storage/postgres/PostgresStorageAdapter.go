@@ -23,6 +23,7 @@ const postgresSchemaCollectionName = "_SCHEMA"
 const postgresRelationDoesNotExistError = "42P01"
 const postgresDuplicateRelationError = "42P07"
 const postgresDuplicateColumnError = "42701"
+const postgresDuplicateObjectError = "42710"
 const postgresUniqueIndexViolationError = "23505"
 const postgresTransactionAbortedError = "25P02"
 
@@ -47,7 +48,7 @@ func (p *PostgresAdapter) ensureSchemaCollectionExists() error {
 	_, err := p.db.Exec(`CREATE TABLE IF NOT EXISTS "_SCHEMA" ( "className" varChar(120), "schema" jsonb, "isParseClass" bool, PRIMARY KEY ("className") )`)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
-			if e.Code == postgresDuplicateRelationError || e.Code == postgresUniqueIndexViolationError {
+			if e.Code == postgresDuplicateRelationError || e.Code == postgresUniqueIndexViolationError || e.Code == postgresDuplicateObjectError {
 				// _SCHEMA 表已经存在，已经由其他请求创建，忽略错误
 				return nil
 			}
@@ -247,47 +248,61 @@ func (p *PostgresAdapter) AddFieldIfNotExists(className, fieldName string, field
 		}
 	}
 
-	qs := `SELECT "schema" FROM "_SCHEMA" WHERE "className" = $1`
-	rows, err := p.db.Query(qs, className)
+	qs := `SELECT "schema" FROM "_SCHEMA" WHERE "className" = $1 and ("schema"::json->'fields'->$2) is not null`
+	rows, err := p.db.Query(qs, className, fieldName)
 	if err != nil {
 		return err
 	}
 	if rows.Next() {
-		var sch types.M
-		var v []byte
-		err := rows.Scan(&v)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(v, &sch)
-		if err != nil {
-			return err
-		}
-		if sch == nil {
-			sch = types.M{}
-		}
-		var fields types.M
-		if v := utils.M(sch["fields"]); v != nil {
-			fields = v
-		} else {
-			fields = types.M{}
-		}
-		if _, ok := fields[fieldName]; ok {
-			// 当表不存在时，会进行新建表，所以也会走到这里，不再处理错误
-			// Attempted to add a field that already exists
-			return nil
-		}
-		fields[fieldName] = fieldType
-		sch["fields"] = fields
-		b, err := json.Marshal(sch)
-		qs := `UPDATE "_SCHEMA" SET "schema"=$1 WHERE "className"=$2`
-		_, err = p.db.Exec(qs, b, className)
-		if err != nil {
-			return err
-		}
+		return nil
 	}
 
-	return nil
+	path := fmt.Sprintf(`{fields,%s}`, fieldName)
+	qs = `UPDATE "_SCHEMA" SET "schema"=jsonb_set("schema", $1, $2)  WHERE "className"=$3`
+	b, _ := json.Marshal(fieldType)
+	_, err = p.db.Exec(qs, path, string(b), className)
+
+	// qs := `SELECT "schema" FROM "_SCHEMA" WHERE "className" = $1`
+	// rows, err := p.db.Query(qs, className)
+	// if err != nil {
+	// 	return err
+	// }
+	// if rows.Next() {
+	// 	var sch types.M
+	// 	var v []byte
+	// 	err := rows.Scan(&v)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	err = json.Unmarshal(v, &sch)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if sch == nil {
+	// 		sch = types.M{}
+	// 	}
+	// 	var fields types.M
+	// 	if v := utils.M(sch["fields"]); v != nil {
+	// 		fields = v
+	// 	} else {
+	// 		fields = types.M{}
+	// 	}
+	// 	if _, ok := fields[fieldName]; ok {
+	// 		// 当表不存在时，会进行新建表，所以也会走到这里，不再处理错误
+	// 		// Attempted to add a field that already exists
+	// 		return nil
+	// 	}
+	// 	fields[fieldName] = fieldType
+	// 	sch["fields"] = fields
+	// 	b, err := json.Marshal(sch)
+	// 	qs := `UPDATE "_SCHEMA" SET "schema"=$1 WHERE "className"=$2`
+	// 	_, err = p.db.Exec(qs, b, className)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	return err
 }
 
 // DeleteClass 删除指定表
@@ -382,7 +397,7 @@ func (p *PostgresAdapter) DeleteFields(className string, schema types.M, fieldNa
 	for _ = range fldNames {
 		columnArray = append(columnArray, `"%s"`)
 	}
-	columns := strings.Join(columnArray, ",")
+	columns := strings.Join(columnArray, ", DROP COLUMN ")
 
 	b, err := json.Marshal(schema)
 	if err != nil {
@@ -1260,6 +1275,11 @@ func (p *PostgresAdapter) PerformInitialization(options types.M) error {
 	return nil
 }
 
+// HandleShutdown 关闭数据库
+func (p *PostgresAdapter) HandleShutdown() {
+	p.db.Close()
+}
+
 func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
 	if len(object) == 0 {
 		return object, nil
@@ -2052,82 +2072,3 @@ func valueToDate(v interface{}) types.M {
 	}
 	return nil
 }
-
-// Function to set a key on a nested JSON document
-const jsonObjectSetKey = `CREATE OR REPLACE FUNCTION "json_object_set_key"(
-  "json"          jsonb,
-  "key_to_set"    TEXT,
-  "value_to_set"  anyelement
-)
-  RETURNS jsonb 
-  LANGUAGE sql 
-  IMMUTABLE 
-  STRICT 
-AS $function$
-SELECT concat('{', string_agg(to_json("key") || ':' || "value", ','), '}')::jsonb
-  FROM (SELECT *
-          FROM jsonb_each("json")
-         WHERE "key" <> "key_to_set"
-         UNION ALL
-        SELECT "key_to_set", to_json("value_to_set")::jsonb) AS "fields"
-$function$`
-
-const arrayAdd = `CREATE OR REPLACE FUNCTION "array_add"(
-  "array"   jsonb,
-  "values"  jsonb
-)
-  RETURNS jsonb 
-  LANGUAGE sql 
-  IMMUTABLE 
-  STRICT 
-AS $function$ 
-  SELECT array_to_json(ARRAY(SELECT unnest(ARRAY(SELECT DISTINCT jsonb_array_elements("array")) ||  ARRAY(SELECT jsonb_array_elements("values")))))::jsonb;
-$function$`
-
-const arrayAddUnique = `CREATE OR REPLACE FUNCTION "array_add_unique"(
-  "array"   jsonb,
-  "values"  jsonb
-)
-  RETURNS jsonb 
-  LANGUAGE sql 
-  IMMUTABLE 
-  STRICT 
-AS $function$ 
-  SELECT array_to_json(ARRAY(SELECT DISTINCT unnest(ARRAY(SELECT DISTINCT jsonb_array_elements("array")) ||  ARRAY(SELECT DISTINCT jsonb_array_elements("values")))))::jsonb;
-$function$`
-
-const arrayRemove = `CREATE OR REPLACE FUNCTION "array_remove"(
-  "array"   jsonb,
-  "values"  jsonb
-)
-  RETURNS jsonb 
-  LANGUAGE sql 
-  IMMUTABLE 
-  STRICT 
-AS $function$ 
-  SELECT array_to_json(ARRAY(SELECT * FROM jsonb_array_elements("array") as elt WHERE elt NOT IN (SELECT * FROM (SELECT jsonb_array_elements("values")) AS sub)))::jsonb;
-$function$`
-
-const arrayContainsAll = `CREATE OR REPLACE FUNCTION "array_contains_all"(
-  "array"   jsonb,
-  "values"  jsonb
-)
-  RETURNS boolean 
-  LANGUAGE sql 
-  IMMUTABLE 
-  STRICT 
-AS $function$ 
-  SELECT RES.CNT = jsonb_array_length("values") FROM (SELECT COUNT(*) as CNT FROM jsonb_array_elements("array") as elt WHERE elt IN (SELECT jsonb_array_elements("values"))) as RES ;
-$function$`
-
-const arrayContains = `CREATE OR REPLACE FUNCTION "array_contains"(
-  "array"   jsonb,
-  "values"  jsonb
-)
-  RETURNS boolean 
-  LANGUAGE sql 
-  IMMUTABLE 
-  STRICT 
-AS $function$ 
-  SELECT RES.CNT >= 1 FROM (SELECT COUNT(*) as CNT FROM jsonb_array_elements("array") as elt WHERE elt IN (SELECT jsonb_array_elements("values"))) as RES ;
-$function$`
