@@ -4,16 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 
-<<<<<<< HEAD
 	"github.com/freeznet/tomato/livequery/pubsub"
 	"github.com/freeznet/tomato/rest"
 	"github.com/freeznet/tomato/types"
-=======
-	"github.com/lfq7413/tomato/livequery/pubsub"
-	"github.com/lfq7413/tomato/rest"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
->>>>>>> 13ed8fdfa0dda59315337ef00487581dc332bce1
+	"github.com/freeznet/tomato/utils"
 )
 
 const (
@@ -51,14 +45,12 @@ func (q *pushQueue) enqueue(body, where types.M, auth *rest.Auth, status *pushSt
 		order = "createdAt"
 	}
 
-<<<<<<< HEAD
-=======
+
 	where = utils.CopyMapM(where)
 	if _, ok := where["deviceToken"]; !ok {
 		where["deviceToken"] = types.M{"$exists": true}
 	}
 
->>>>>>> 13ed8fdfa0dda59315337ef00487581dc332bce1
 	options := types.M{
 		"limit": 0,
 		"count": true,

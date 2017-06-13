@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"log"
 
 	"regexp"
 

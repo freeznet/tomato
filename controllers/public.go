@@ -4,9 +4,9 @@ import (
 	"strings"
 
 	"github.com/astaxie/beego"
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/publichtml"
-	"github.com/lfq7413/tomato/rest"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/publichtml"
+	"github.com/freeznet/tomato/rest"
 )
 
 // PublicController 处理密码修改与邮箱验证请求
