@@ -27,3 +27,4 @@ _testmain.go
 
 routers/commentsRouter*
 .idea
+/.idea/libraries/Go_SDK.xml

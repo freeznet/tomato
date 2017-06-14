@@ -11,7 +11,7 @@ import (
 const MongoDBTestURL = "192.168.99.100:27017/test"
 
 // PostgreSQLTestURL ...
-const PostgreSQLTestURL = "postgres://postgres:123456@192.168.99.100:5432/postgres?sslmode=disable"
+const PostgreSQLTestURL = "postgres://postgres@127.0.0.1:5432/test?sslmode=disable"
 
 // OpenMongoDBForTest ...
 func OpenMongoDBForTest() *mgo.Database {
