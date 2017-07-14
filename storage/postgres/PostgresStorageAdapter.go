@@ -1373,7 +1373,7 @@ func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
 				object[fieldName] = nil
 			}
 		} else if objectType == "String" && object[fieldName] != nil {
-			if v, ok := object[fieldName].([]byte); ok {
+			if v, ok := object[fieldName].(string); ok {
 				object[fieldName] = string(v)
 			} else {
 				object[fieldName] = nil
