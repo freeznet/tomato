@@ -169,7 +169,7 @@ func getExpiredTime() string {
 
 func getRand() string {
 	rand.Seed(time.Now().UnixNano())
-	r := rand.Intn(9999999999)
+	r := rand.Intn(999999999)
 	return fmt.Sprintf("%d", r)
 }
 
