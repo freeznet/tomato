@@ -1618,6 +1618,7 @@ func toPostgresSchema(schema types.M) types.M {
 	if schema == nil {
 		return nil
 	}
+	schema = utils.CopyMapM(schema)
 
 	var fields types.M
 	if fields = utils.CopyMapM(utils.M(schema["fields"])); fields == nil {

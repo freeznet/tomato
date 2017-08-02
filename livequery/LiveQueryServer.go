@@ -11,7 +11,6 @@ import (
 	"github.com/freeznet/tomato/livequery/server"
 	"github.com/freeznet/tomato/livequery/t"
 	"github.com/freeznet/tomato/livequery/utils"
-	"log"
 )
 
 /*
