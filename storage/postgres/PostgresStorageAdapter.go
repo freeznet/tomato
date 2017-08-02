@@ -816,7 +816,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 	}
 	defer rows.Close()
 
-	fields := utils.M(schema["fields"])
+	fields := utils.CopyMapM(utils.M(schema["fields"]))
 	if fields == nil {
 		fields = types.M{}
 	}
@@ -1620,7 +1620,7 @@ func toPostgresSchema(schema types.M) types.M {
 	}
 
 	var fields types.M
-	if fields = utils.M(schema["fields"]); fields == nil {
+	if fields = utils.CopyMapM(utils.M(schema["fields"])); fields == nil {
 		fields = types.M{}
 	}
 
@@ -1726,7 +1726,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 	if schema == nil {
 		schema = types.M{}
 	}
-	fields := utils.M(schema["fields"])
+	fields := utils.CopyMapM(utils.M(schema["fields"]))
 	if fields == nil {
 		fields = types.M{}
 	}
