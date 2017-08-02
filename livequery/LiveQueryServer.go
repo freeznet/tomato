@@ -289,7 +289,6 @@ func (l *liveQueryServer) OnMessage(ws *server.WebSocket, msg interface{}) {
 		return
 	}
 	utils.TLog.Verbose("Request:", request)
-	log.Println(request)
 
 	// 校验 op 操作否是否支持
 	err := server.Validate(request, "general")
