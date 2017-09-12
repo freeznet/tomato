@@ -3,6 +3,7 @@ package files
 import (
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/utils"
+	"github.com/freeznet/tomato/cloud"
 )
 
 var adapter filesAdapter
@@ -40,12 +41,29 @@ func CreateFile(filename string, data []byte, contentType string) map[string]str
 	} else if extname != "" && contentType == "" {
 		contentType = utils.LookupContentType(filename)
 	}
-
+	orifilename := filename
 	filename = utils.CreateFileName() + "-" + filename
 	location := adapter.getFileLocation(filename)
 
-	err := adapter.createFile(filename, data, contentType)
+	hasBeforeFileUploadHook := cloud.TriggerExists(cloud.TypeBeforeFileUpload, extname)
+	if hasBeforeFileUploadHook == false {
+		return nil
+	}
+	_, err := maybeRunTrigger(cloud.TypeBeforeFileUpload, extname, orifilename, data, contentType)
+	if err != nil {
+		return nil
+	}
+	err = adapter.createFile(filename, data, contentType)
 
+	if err != nil {
+		return nil
+	}
+
+	hasAfterFileUploadHook := cloud.TriggerExists(cloud.TypeAfterFileUpload, extname)
+	if hasAfterFileUploadHook == false {
+		return nil
+	}
+	_, err = maybeRunAfterTrigger(cloud.TypeAfterFileUpload, extname, orifilename, filename, location)
 	if err != nil {
 		return nil
 	}

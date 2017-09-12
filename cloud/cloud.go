@@ -83,6 +83,18 @@ func AfterFind(className string, handler TriggerHandler) error {
 	return nil
 }
 
+// BeforeFileUpload ...
+func BeforeFileUpload(postfix string, handler TriggerHandler) error {
+	AddTrigger(TypeBeforeFileUpload, postfix, handler)
+	return nil
+}
+
+// AfterFileUpload ...
+func AfterFileUpload(postfix string, handler TriggerHandler) error {
+	AddTrigger(TypeAfterFileUpload, postfix, handler)
+	return nil
+}
+
 // RemoveHook ...
 func RemoveHook(category, name, triggerType string) {
 	Unregister(category, name, triggerType)

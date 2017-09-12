@@ -21,6 +21,8 @@ const (
 	TypeBeforeFind = "beforeFind"
 	// TypeAfterFind 查询后回调
 	TypeAfterFind = "afterFind"
+	TypeBeforeFileUpload = "beforeFile"
+	TypeAfterFileUpload = "afterFile"
 )
 
 // TriggerRequest ...
@@ -34,6 +36,11 @@ type TriggerRequest struct {
 	Master         bool
 	User           types.M
 	InstallationID string
+	OriFilename string			// beforeFile 时使用
+	Filename string			// beforeFile 时使用
+	Location string			// beforeFile 时使用
+	Data []byte				// beforeFile 时使用
+	ContentType string		// beforeFile 时使用
 }
 
 // FunctionRequest ...
@@ -85,6 +92,8 @@ func init() {
 		TypeAfterDelete:  map[string]TriggerHandler{},
 		TypeBeforeFind:   map[string]TriggerHandler{},
 		TypeAfterFind:    map[string]TriggerHandler{},
+		TypeBeforeFileUpload:    map[string]TriggerHandler{},
+		TypeAfterFileUpload:    map[string]TriggerHandler{},
 	}
 	functions = map[string]FunctionHandler{}
 	validators = map[string]ValidatorHandler{}
@@ -147,6 +156,10 @@ func UnregisterAll() {
 		TypeAfterSave:    map[string]TriggerHandler{},
 		TypeBeforeDelete: map[string]TriggerHandler{},
 		TypeAfterDelete:  map[string]TriggerHandler{},
+		TypeBeforeFind:   map[string]TriggerHandler{},
+		TypeAfterFind:    map[string]TriggerHandler{},
+		TypeBeforeFileUpload:    map[string]TriggerHandler{},
+		TypeAfterFileUpload:    map[string]TriggerHandler{},
 	}
 	functions = map[string]FunctionHandler{}
 	validators = map[string]ValidatorHandler{}
