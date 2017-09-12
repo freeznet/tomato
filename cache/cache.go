@@ -1,7 +1,9 @@
 package cache
 
-import "strings"
-import "github.com/freeznet/tomato/config"
+import (
+	"strings"
+	"github.com/freeznet/tomato/config"
+)
 
 // Role ...
 var Role *SubCache

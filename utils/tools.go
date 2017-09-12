@@ -26,26 +26,14 @@ func IsEmail(email string) bool {
 
 // DeepCopy 简易版的内存复制
 func DeepCopy(i interface{}) interface{} {
-	if i == nil {
-		return nil
-	}
-	if s, ok := i.([]interface{}); ok {
-		return CopySlice(s)
-	}
-	if s, ok := i.(types.S); ok {
-		return CopySliceS(s)
-	}
-	if m, ok := i.(map[string]interface{}); ok {
-		return CopyMap(m)
-	}
-	if m, ok := i.(types.M); ok {
-		return CopyMapM(m)
-	}
-	return i
+	return Copy(i)
 }
 
 // CopyMap 复制 map
 func CopyMap(m map[string]interface{}) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
 	d := map[string]interface{}{}
 	for k, v := range m {
 		d[k] = DeepCopy(v)
@@ -55,6 +43,9 @@ func CopyMap(m map[string]interface{}) map[string]interface{} {
 
 // CopySlice 复制 slice
 func CopySlice(s []interface{}) []interface{} {
+	if s == nil {
+		return nil
+	}
 	d := []interface{}{}
 	for _, v := range s {
 		d = append(d, DeepCopy(v))
@@ -64,6 +55,9 @@ func CopySlice(s []interface{}) []interface{} {
 
 // CopyMapM 复制 map
 func CopyMapM(m types.M) types.M {
+	if m == nil {
+		return nil
+	}
 	d := types.M{}
 	for k, v := range m {
 		d[k] = DeepCopy(v)
@@ -73,6 +67,9 @@ func CopyMapM(m types.M) types.M {
 
 // CopySliceS 复制 slice
 func CopySliceS(s types.S) types.S {
+	if s == nil {
+		return nil
+	}
 	d := types.S{}
 	for _, v := range s {
 		d = append(d, DeepCopy(v))
