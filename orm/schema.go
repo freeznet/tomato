@@ -10,6 +10,7 @@ import (
 	"github.com/freeznet/tomato/storage"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
+	"fmt"
 )
 
 // clpValidKeys 类级别的权限 列表
@@ -781,17 +782,17 @@ func thenValidateRequiredColumns(schema *Schema, className string, object, query
 
 // getType 获取对象的格式
 func getType(obj interface{}) (types.M, error) {
-	switch obj.(type) {
+	switch v := obj.(type) {
 	case bool:
 		return types.M{"type": "Boolean"}, nil
 	case string:
 		return types.M{"type": "String"}, nil
-	case float64, int:
+	case float32, float64, int:
 		return types.M{"type": "Number"}, nil
 	case map[string]interface{}, []interface{}, types.M, types.S:
 		return getObjectType(obj)
 	default:
-		return nil, errs.E(errs.IncorrectType, "bad obj. can not get type")
+		return nil, errs.E(errs.IncorrectType, fmt.Sprintf("bad obj. can not get type %v", v))
 	}
 }
 

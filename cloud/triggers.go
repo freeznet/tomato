@@ -249,12 +249,21 @@ func (t *TriggerResponse) Success(response interface{}) {
 		t.Request.TriggerName == TypeBeforeSave {
 		return
 	}
+
+	if t.Response != nil &&
+		t.Request.TriggerName == TypeBeforeFileUpload {
+		return
+	}
+
 	if t.Response != nil && t.Request.TriggerName == TypeBeforeFind {
 		return
 	}
 	t.Response = types.M{}
 	if t.Request.TriggerName == TypeBeforeSave {
 		t.Response["object"] = t.Request.Object
+	}
+	if t.Request.TriggerName == TypeBeforeFileUpload {
+		t.Response["data"] = t.Request.Data
 	}
 }
 

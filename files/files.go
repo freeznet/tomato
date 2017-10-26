@@ -45,24 +45,34 @@ func CreateFile(filename string, data []byte, contentType string) map[string]str
 	filename = utils.CreateFileName() + "-" + filename
 	location := adapter.getFileLocation(filename)
 
-	hasBeforeFileUploadHook := cloud.TriggerExists(cloud.TypeBeforeFileUpload, extname)
-	if hasBeforeFileUploadHook == false {
-		return nil
-	}
-	_, err := maybeRunTrigger(cloud.TypeBeforeFileUpload, extname, orifilename, data, contentType)
+	//hasBeforeFileUploadHook := cloud.TriggerExists(cloud.TypeBeforeFileUpload, extname)
+	//if hasBeforeFileUploadHook == false {
+	//	return nil
+	//}
+	response, err := maybeRunTrigger(cloud.TypeBeforeFileUpload, extname, orifilename, data, contentType)
 	if err != nil {
 		return nil
 	}
-	err = adapter.createFile(filename, data, contentType)
+
+	if response != nil && response["data"] != nil {
+		newdata, ok := response["data"].([]byte)
+		if ok{
+			err = adapter.createFile(filename, newdata, contentType)
+		} else {
+			err = adapter.createFile(filename, data, contentType)
+		}
+	} else {
+		err = adapter.createFile(filename, data, contentType)
+	}
 
 	if err != nil {
 		return nil
 	}
 
-	hasAfterFileUploadHook := cloud.TriggerExists(cloud.TypeAfterFileUpload, extname)
-	if hasAfterFileUploadHook == false {
-		return nil
-	}
+	//hasAfterFileUploadHook := cloud.TriggerExists(cloud.TypeAfterFileUpload, extname)
+	//if hasAfterFileUploadHook == false {
+	//	return nil
+	//}
 	_, err = maybeRunAfterTrigger(cloud.TypeAfterFileUpload, extname, orifilename, filename, location)
 	if err != nil {
 		return nil
