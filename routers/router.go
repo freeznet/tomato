@@ -12,6 +12,11 @@ func init() {
 				&controllers.ClassesController{},
 			),
 		),
+		beego.NSNamespace("/aggregate",
+			beego.NSInclude(
+				&controllers.AggregateController{},
+			),
+		),
 		beego.NSNamespace("/users",
 			beego.NSInclude(
 				&controllers.UsersController{},

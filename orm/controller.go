@@ -184,6 +184,25 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 			return nil, err
 		}
 		return types.S{count}, nil
+	} else if options["distinct"] != nil {
+		if classExists == false {
+			return types.S{}, nil
+		}
+		distinct, ok := options["distinct"].(string)
+		if !ok {
+			return types.S{}, nil
+		}
+		objects, err := Adapter.Distinct(className, distinct, parseFormatSchema, query)
+		if err != nil {
+			return nil, err
+		}
+		results := types.S{}
+		for _, object := range objects {
+			results = append(results, object[distinct])
+		}
+		return results, nil
+	}else if options["pipeline"] != nil {
+		return types.S{}, nil
 	}
 
 	if classExists == false {

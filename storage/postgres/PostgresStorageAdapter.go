@@ -891,6 +891,108 @@ func (p *PostgresAdapter) Count(className string, schema, query types.M) (int, e
 	return count, nil
 }
 
+// DISTINCT
+func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query types.M) ([]types.M, error) {
+	if schema == nil {
+		schema = types.M{}
+	}
+	if query == nil {
+		query = types.M{}
+	}
+	field  := fieldName
+	column := fieldName
+	fields := utils.CopyMapM(utils.M(schema["fields"]))
+	if fields == nil {
+		fields = types.M{}
+	}
+
+	if strings.Index(fieldName, ".") > -1 {
+		components := strings.Split(fieldName, ".")
+		for index, cmpt := range components {
+			if index == 0 {
+				components[index] = `"` + cmpt + `"`
+			} else {
+				components[index] = `'` + cmpt + `'`
+			}
+		}
+		field = strings.Join(components, "->")
+		column = components[0]
+	}
+
+	isArrayField := false
+	if fields != nil {
+		if tp := utils.M(fields[fieldName]); tp != nil {
+			if utils.S(tp["type"]) == "Array" {
+				isArrayField = true
+			}
+		}
+	}
+
+	values := types.S{}
+	//values = append(values, field)
+	//values = append(values, column)
+	//values = append(values, className)
+	where, err := buildWhereClause(schema, query, 1)
+	if err != nil {
+		return nil, err
+	}
+	values = append(values, where.values...)
+
+	var wherePattern string
+	if where.pattern != "" {
+		wherePattern = `WHERE ` + where.pattern
+	}
+
+	qs := fmt.Sprintf(`SELECT DISTINCT ON ("%s") "%s" FROM "%s" %s`, field, column, className, wherePattern)
+	if isArrayField {
+		qs = fmt.Sprintf(`SELECT DISTINCT jsonb_array_elements(%s) AS %s FROM "%s" %s`, field, column, className, wherePattern)
+	}
+	fmt.Println(qs)
+	rows, err := p.db.Query(qs, values...)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			// 表不存在返回空
+			if e.Code == postgresRelationDoesNotExistError {
+				return []types.M{}, nil
+			}
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := []types.M{}
+	var resultColumns []string
+	for rows.Next() {
+		if resultColumns == nil {
+			resultColumns, err = rows.Columns()
+			if err != nil {
+				return nil, err
+			}
+		}
+		resultValues := []*interface{}{}
+		values := types.S{}
+		for i := 0; i < len(resultColumns); i++ {
+			var v interface{}
+			resultValues = append(resultValues, &v)
+			values = append(values, &v)
+		}
+		err = rows.Scan(values...)
+		if err != nil {
+			return nil, err
+		}
+		object := types.M{}
+		for i, f := range resultColumns {
+			if f == field {
+				object[field] = *resultValues[i]
+			}
+		}
+
+		results = append(results, object)
+	}
+
+	return results, nil
+}
+
 // UpdateObjectsByQuery ...
 func (p *PostgresAdapter) UpdateObjectsByQuery(className string, schema, query, update types.M) error {
 	_, err := p.FindOneAndUpdate(className, schema, query, update)
@@ -1710,6 +1812,10 @@ func handleDotFields(object types.M) types.M {
 		delete(object, fieldName)
 	}
 	return object
+}
+
+func transformAggregateField(fieldName string) string {
+	return fieldName[0:1]
 }
 
 func validateKeys(object interface{}) error {

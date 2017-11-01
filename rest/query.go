@@ -124,6 +124,10 @@ func NewQuery(
 			}
 		case "count":
 			query.doCount = true
+		case "distinct":
+			query.findOptions["distinct"] = v
+		case "pipeline":
+			query.findOptions["pipeline"] = v
 		case "skip":
 			query.findOptions["skip"] = v
 		case "limit":
