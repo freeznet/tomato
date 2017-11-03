@@ -929,9 +929,6 @@ func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query ty
 	}
 
 	values := types.S{}
-	//values = append(values, field)
-	//values = append(values, column)
-	//values = append(values, className)
 	where, err := buildWhereClause(schema, query, 1)
 	if err != nil {
 		return nil, err
@@ -947,7 +944,7 @@ func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query ty
 	if isArrayField {
 		qs = fmt.Sprintf(`SELECT DISTINCT jsonb_array_elements(%s) AS %s FROM "%s" %s`, field, column, className, wherePattern)
 	}
-	fmt.Println(qs)
+	//fmt.Println(qs)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
@@ -984,6 +981,261 @@ func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query ty
 		for i, f := range resultColumns {
 			if f == field {
 				object[field] = *resultValues[i]
+			}
+		}
+
+		results = append(results, object)
+	}
+
+	return results, nil
+}
+
+// AGGREGATE
+func (p *PostgresAdapter) Aggregate(className string, schema, query, options types.M) ([]types.M, error) {
+	//values := types.S{}
+	var selectPattern string
+	var wherePattern string
+	var groupPattern string
+	var limitPattern string
+	var sortPattern string
+	var skipPattern string
+	var countField string
+
+	columns := []string{}
+	groupby := []string{}
+
+	pipeline := utils.M(options["pipeline"])
+
+	if pipeline == nil {
+		pipeline = types.M{}
+	}
+
+	if schema == nil {
+		schema = types.M{}
+	}
+	if options == nil {
+		options = types.M{}
+	}
+
+	var hasLimit bool
+	var hasSkip bool
+	if _, ok := options["limit"]; ok {
+		hasLimit = true
+	}
+	if _, ok := options["skip"]; ok {
+		hasSkip = true
+	}
+
+	values := types.S{}
+	where, err := buildWhereClause(schema, query, 1)
+	if err != nil {
+		return nil, err
+	}
+	values = append(values, where.values...)
+
+
+	if where.pattern != "" {
+		wherePattern = `WHERE ` + where.pattern
+	}
+	if hasLimit {
+		limitPattern = fmt.Sprintf(`LIMIT $%d`, len(values)+1)
+		values = append(values, options["limit"])
+	}
+	if hasSkip {
+		skipPattern = fmt.Sprintf(`OFFSET $%d`, len(values)+1)
+		values = append(values, options["skip"])
+	}
+
+
+	if _, ok := options["sort"]; ok {
+		if keys, ok := options["sort"].([]string); ok {
+			postgresSort := []string{}
+			for _, key := range keys {
+				var postgresKey string
+				if strings.HasPrefix(key, "-") {
+					key = key[1:]
+					postgresKey = fmt.Sprintf(`"%s" DESC`, key)
+				} else {
+					postgresKey = fmt.Sprintf(`"%s" ASC`, key)
+				}
+				postgresSort = append(postgresSort, postgresKey)
+			}
+			sorting := strings.Join(postgresSort, ",")
+			if len(postgresSort) > 0 {
+				sortPattern = fmt.Sprintf(`ORDER BY %s`, sorting)
+			}
+		}
+	}
+	if len(where.sorts) > 0 {
+		sortPattern = fmt.Sprintf(`ORDER BY %s`, strings.Join(where.sorts, ","))
+	}
+
+	fmt.Printf("pipeline %v \n", pipeline)
+
+	for p := range pipeline {
+
+		stage := utils.M(pipeline[p])
+		if _, ok := pipeline["group"]; !ok{
+			columns = append(columns, "*")
+		}
+		//fmt.Println(p, pipeline[p], stage)
+		if stage != nil && p == "group" {
+			for field := range stage {
+				if v, ok := stage[field].(string); ok {
+					columns = append(columns, `"` + v + `" AS "` + field + `"`)
+					groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
+					continue
+				}
+				value := utils.M(stage[field])
+				if value != nil && value["sum"] != nil {
+					if v, ok := value["sum"].(string); ok {
+						columns = append(columns, "SUM(\""+ v + "\") AS \"" + field + "\"")
+					} else {
+						countField = field
+						columns = append(columns, "COUNT(*) AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["max"] != nil {
+					if v, ok := value["max"].(string); ok {
+						columns = append(columns, "MAX(\""+ v + "\") AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["min"] != nil {
+					if v, ok := value["min"].(string); ok {
+						columns = append(columns, "MIN(\""+ v + "\") AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["avg"] != nil {
+					if v, ok := value["avg"].(string); ok {
+						columns = append(columns, "AVG(\""+ v + "\") AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["variance"] != nil {
+					if v, ok := value["variance"].(string); ok {
+						columns = append(columns, "variance(\""+ v + "\") AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["var_pop"] != nil {
+					if v, ok := value["var_pop"].(string); ok {
+						columns = append(columns, "var_pop(\""+ v + "\") AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["stddev"] != nil {
+					if v, ok := value["stddev"].(string); ok {
+						columns = append(columns, "variance(\""+ v + "\") AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["stddev_pop"] != nil {
+					if v, ok := value["stddev_pop"].(string); ok {
+						columns = append(columns, "stddev_pop(\""+ v + "\") AS \"" + field + "\"")
+					}
+				}
+				if value != nil && value["date_trunc"] != nil {
+					opt := utils.M(value["date_trunc"])
+					if opt != nil {
+						unit, ok := opt["unit"].(string)
+						if ok {
+							target, ok := opt["field"].(string)
+							if ok {
+								columns = append(columns, "date_trunc('"+ unit + "', \"" + target + "\") AS \"" + field + "\"")
+								groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
+							}
+						}
+					}
+				}
+				if value != nil && value["date_part"] != nil {
+					opt := utils.M(value["date_part"])
+					if opt != nil {
+						unit, ok := opt["unit"].(string)
+						if ok {
+							target, ok := opt["field"].(string)
+							if ok {
+								every, ok := opt["every"].(float64)
+								if ok && int(every) > 0{
+									columns = append(columns, fmt.Sprintf(`(date_part('%s', "%s")::int / %d) AS "%s"`, unit, target, int(every), field))
+									groupby = append(groupby, fmt.Sprintf(`"%s"`, field))
+								} else {
+									columns = append(columns, "date_part('"+unit+"', \""+target+"\") AS \""+field+"\"")
+									groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		//fmt.Printf("columns %v \n", columns)
+		if stage != nil && p == "project" {
+			if _, ok := pipeline["group"]; !ok{
+				columns = []string{}
+			}
+			for field := range stage {
+				switch v := stage[field].(type) {
+				case int32, int64:
+					if v == 1 {
+						columns = append(columns, fmt.Sprintf("\"%s\"", field))
+					}
+				case bool:
+					if v {
+						columns = append(columns, fmt.Sprintf("\"%s\"", field))
+					}
+				default:
+					columns = append(columns, fmt.Sprintf("\"%s\"", field))
+				}
+			}
+		}
+	}
+
+	if len(columns) > 0 {
+		selectPattern = strings.Join(columns, ",")
+	} else {
+		selectPattern = "*"
+	}
+
+	if len(groupby) > 0 {
+		groupPattern = "GROUP BY " + strings.Join(groupby, ",")
+	}
+
+	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s`, selectPattern, className, wherePattern, sortPattern, limitPattern, skipPattern, groupPattern)
+
+	rows, err := p.db.Query(qs, values...)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			// 表不存在返回空
+			if e.Code == postgresRelationDoesNotExistError {
+				return []types.M{}, nil
+			}
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := []types.M{}
+	var resultColumns []string
+	for rows.Next() {
+		if resultColumns == nil {
+			resultColumns, err = rows.Columns()
+			if err != nil {
+				return nil, err
+			}
+		}
+		resultValues := []*interface{}{}
+		values := types.S{}
+		for i := 0; i < len(resultColumns); i++ {
+			var v interface{}
+			resultValues = append(resultValues, &v)
+			values = append(values, &v)
+		}
+		err = rows.Scan(values...)
+		if err != nil {
+			return nil, err
+		}
+		object := types.M{}
+		for i, f := range resultColumns {
+			if f == countField {
+				object[f] = (*resultValues[i]).(int64)
+			} else {
+				object[f] = *resultValues[i]
 			}
 		}
 

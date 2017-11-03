@@ -389,6 +389,10 @@ func (p *MongoAdapter) Distinct(className, fieldName string, schema, query types
 	return []types.M{}, nil
 }
 
+func (p *MongoAdapter) Aggregate(className string, schema, query, options types.M) ([]types.M, error){
+	return []types.M{}, nil
+}
+
 // EnsureUniqueness 创建索引
 func (m *MongoAdapter) EnsureUniqueness(className string, schema types.M, fieldNames []string) error {
 	schema = convertParseSchemaToMongoSchema(schema)

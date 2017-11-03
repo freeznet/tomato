@@ -202,7 +202,18 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 		}
 		return results, nil
 	}else if options["pipeline"] != nil {
-		return types.S{}, nil
+		if classExists == false {
+			return types.S{}, nil
+		}
+		objects, err := Adapter.Aggregate(className, parseFormatSchema, query, options)
+		if err != nil {
+			return nil, err
+		}
+		results := types.S{}
+		for _, object := range objects {
+			results = append(results, object)
+		}
+		return results, nil
 	}
 
 	if classExists == false {

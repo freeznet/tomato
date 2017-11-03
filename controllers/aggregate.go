@@ -7,6 +7,7 @@ import (
 	"github.com/freeznet/tomato/rest"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
+
 )
 
 type AggregateController struct {
@@ -59,13 +60,23 @@ func (c *AggregateController) HandleFind() {
 	}
 
 	pipeline := types.M{}
-
 	for k := range allowKeys {
+		if k == "group" && c.Query[k] != ""{
+			groupbody := types.M{}
+			err := json.Unmarshal([]byte(c.Query["group"]), &groupbody)
+			if err != nil {
+				c.HandleError(errs.E(errs.InvalidJSON, "group should be valid json"), 0)
+				return
+			}
+			pipeline[k] = groupbody
+			continue
+		}
 		if c.Query[k] != "" {
 			pipeline[k] = c.Query[k]
 		} else if c.JSONBody != nil && c.JSONBody[k] != nil {
 			pipeline[k] = utils.M(c.JSONBody[k])
 		}
+
 	}
 
 	// 获取查询参数，并组装
@@ -89,6 +100,8 @@ func (c *AggregateController) HandleFind() {
 	} else if c.JSONBody != nil && c.JSONBody["where"] != nil {
 		where = utils.M(c.JSONBody["where"])
 	}
+
+	//fmt.Println(options)
 
 	response, err := rest.Find(c.Auth, c.ClassName, where, options, c.Info.ClientSDK)
 	if err != nil {

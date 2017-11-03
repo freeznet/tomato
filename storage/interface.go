@@ -18,6 +18,7 @@ type Adapter interface {
 	Find(className string, schema, query, options types.M) ([]types.M, error)
 	Count(className string, schema, query types.M) (int, error)
 	Distinct(className, fieldName string, schema, query types.M) ([]types.M, error)
+	Aggregate(className string, schema, query, options types.M) ([]types.M, error)
 	UpdateObjectsByQuery(className string, schema, query, update types.M) error
 	FindOneAndUpdate(className string, schema, query, update types.M) (types.M, error)
 	UpsertOneObject(className string, schema, query, update types.M) error
