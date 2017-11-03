@@ -1070,7 +1070,7 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		sortPattern = fmt.Sprintf(`ORDER BY %s`, strings.Join(where.sorts, ","))
 	}
 
-	fmt.Printf("pipeline %v \n", pipeline)
+	//fmt.Printf("pipeline %v \n", pipeline)
 
 	for p := range pipeline {
 
