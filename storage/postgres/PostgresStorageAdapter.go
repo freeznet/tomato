@@ -1198,6 +1198,8 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 
 	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s`, selectPattern, className, wherePattern, sortPattern, limitPattern, skipPattern, groupPattern)
 
+	//fmt.Println(qs)
+	//fmt.Println(values)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
