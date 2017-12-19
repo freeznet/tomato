@@ -80,17 +80,17 @@ type Config struct {
 	InfluxDBPassword                 string   // InfluxDB 密码，仅在 AnalyticsAdapter=InfluxDB 时需要配置
 	InfluxDBDatabaseName             string   // InfluxDB 数据库，仅在 AnalyticsAdapter=InfluxDB 时需要配置
 	InvalidLink                      string   // 自定义页面地址，无效链接页面
-	InvalidVerificationLink          string   // 自定义页面地址，无效验证链接页面
-	LinkSendSuccess                  string   // 自定义页面地址，发送成功页面
-	LinkSendFail                     string   // 自定义页面地址，发送失败页面
-	VerifyEmailSuccess               string   // 自定义页面地址，验证邮箱成功页面
-	ChoosePassword                   string   // 自定义页面地址，修改密码页面
-	PasswordResetSuccess             string   // 自定义页面地址，密码重置成功页面
-	ParseFrameURL                    string   // 自定义页面地址，用于呈现验证 Email 页面和密码重置页面
-	FCMServerKey                     string   // FCM Server Key
-	HDFSNN							 string   // HDFS Name Node 地址
-	HDFSUser						 string   // HDFS 用户名
-	HDFSRoot						 string	  // HDFS 存储根目录
+	InvalidVerificationLink string            // 自定义页面地址，无效验证链接页面
+	LinkSendSuccess         string            // 自定义页面地址，发送成功页面
+	LinkSendFail            string            // 自定义页面地址，发送失败页面
+	VerifyEmailSuccess      string            // 自定义页面地址，验证邮箱成功页面
+	ChoosePassword          string            // 自定义页面地址，修改密码页面
+	PasswordResetSuccess    string            // 自定义页面地址，密码重置成功页面
+	ParseFrameURL           string            // 自定义页面地址，用于呈现验证 Email 页面和密码重置页面
+	FCMServerKey            string            // FCM Server Key
+	HDFSNameNode            string            // HDFS Name Node 地址
+	HDFSUser                string            // HDFS 用户名
+	HDFSRoot                string            // HDFS 存储根目录
 }
 
 var (
@@ -197,6 +197,9 @@ func parseConfig() {
 	TConfig.ScheduledPush = beego.AppConfig.DefaultBool("ScheduledPush", false)
 
 	TConfig.FCMServerKey = beego.AppConfig.String("FCMServerKey")
+	TConfig.HDFSNameNode = beego.AppConfig.String("HDFSNameNode")
+	TConfig.HDFSUser = beego.AppConfig.String("HDFSUser")
+	TConfig.HDFSRoot = beego.AppConfig.String("HDFSRoot")
 }
 
 // Validate 校验用户参数合法性

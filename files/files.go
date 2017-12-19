@@ -24,7 +24,7 @@ func init() {
 	} else if a == "Tencent" {
 		adapter = newTencentAdapter()
 	} else if a == "HDFS" {
-		adapter = newHDFSAdapter(config.TConfig.HDFSNN, config.TConfig.HDFSUser, config.TConfig.HDFSRoot)
+		adapter = newHDFSAdapter(config.TConfig.HDFSNameNode, config.TConfig.HDFSUser, config.TConfig.HDFSRoot)
 	} else {
 		adapter = newFileSystemAdapter(config.TConfig.AppID)
 	}
