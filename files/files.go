@@ -23,6 +23,8 @@ func init() {
 		adapter = newSinaAdapter()
 	} else if a == "Tencent" {
 		adapter = newTencentAdapter()
+	} else if a == "HDFS" {
+		adapter = newHDFSAdapter(config.TConfig.HDFSNN, config.TConfig.HDFSUser, config.TConfig.HDFSRoot)
 	} else {
 		adapter = newFileSystemAdapter(config.TConfig.AppID)
 	}
