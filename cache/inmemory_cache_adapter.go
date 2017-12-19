@@ -3,7 +3,6 @@ package cache
 import (
 	"sync"
 	"time"
-
 	"github.com/freeznet/tomato/utils"
 )
 
