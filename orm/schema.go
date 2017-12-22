@@ -792,7 +792,7 @@ func getType(obj interface{}) (types.M, error) {
 	case map[string]interface{}, []interface{}, types.M, types.S:
 		return getObjectType(obj)
 	default:
-		return nil, errs.E(errs.IncorrectType, fmt.Sprintf("bad obj. can not get type %v", v))
+		return nil, errs.E(errs.IncorrectType, fmt.Sprintf("bad obj. can not get type %v %v", obj, v))
 	}
 }
 

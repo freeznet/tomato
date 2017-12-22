@@ -1082,13 +1082,24 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		if stage != nil && p == "group" {
 			for field := range stage {
 				if v, ok := stage[field].(string); ok {
-					columns = append(columns, `"` + v + `" AS "` + field + `"`)
-					groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
+					if field == "objectId" && v != "objectId" {
+						columns = append(columns, `"`+v+`" AS "`+field+`"`)
+						groupby = append(groupby, fmt.Sprintf("\"%s\"", v))
+					} else {
+						columns = append(columns, `"`+v+`" AS "`+field+`"`)
+						groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
+					}
 					continue
 				}
 				value := utils.M(stage[field])
 				if value != nil && value["sum"] != nil {
 					if v, ok := value["sum"].(string); ok {
+						if value["convert"] != nil{
+							if vv, ok := value["convert"].(string); ok {
+								columns = append(columns, "SUM(\""+ v + "\" :: "+vv+" ) AS \"" + field + "\"")
+								continue
+							}
+						}
 						columns = append(columns, "SUM(\""+ v + "\") AS \"" + field + "\"")
 					} else {
 						countField = field
@@ -1236,6 +1247,13 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		for i, f := range resultColumns {
 			if f == countField {
 				object[f] = (*resultValues[i]).(int64)
+			} else if f == "objectId" {
+				bs := (*resultValues[i]).([]uint8)
+				b := make([]byte, len(bs))
+				for i, v := range bs {
+					b[i] = byte(v)
+				}
+				object[f] = string(b)
 			} else {
 				object[f] = *resultValues[i]
 			}
