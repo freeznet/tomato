@@ -256,6 +256,10 @@ func validateFileConfiguration() {
 		if TConfig.TencentAppID == "" || TConfig.TencentBucket == "" || TConfig.TencentSecretID == "" || TConfig.TencentSecretKey == "" {
 			log.Fatalln("TencentAppID, TencentBucket, TencentSecretID, TencentSecretKey is required")
 		}
+	case "HDFS":
+		if TConfig.HDFSRoot == "" || TConfig.HDFSUser == "" || TConfig.HDFSNameNode == "" {
+			log.Fatalln("HDFSRoot, HDFSUser, HDFSNameNode is required")
+		}
 	default:
 		log.Fatalln("Unsupported FileAdapter")
 	}
