@@ -21,7 +21,7 @@ func newHDFSAdapter(nn, user, rootpath string) *hdfsAdapter {
 	}
 	g.client = client
 	g.rootpath = rootpath
-	if !strings.HasSuffix("g.rootpath", "/") {
+	if !strings.HasSuffix(g.rootpath, "/") {
 		g.rootpath = g.rootpath + "/"
 	}
 	return g
