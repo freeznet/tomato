@@ -101,6 +101,9 @@ func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions 
 	if restOptions["count"] != nil {
 		count = true
 	}
+	if restOptions["order"] != nil {
+		query["order"] = restOptions["order"]
+	}
 
 	request := getRequestQuery(triggerType, auth, query, count)
 	response := getResponse(request)
@@ -127,6 +130,10 @@ func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions 
 	if keys := response.Response["keys"]; keys != nil {
 		restOptions["keys"] = keys
 	}
+	if order := response.Response["order"]; order != nil {
+		restOptions["order"] = order
+	}
+
 
 	return restWhere, restOptions, nil
 }
