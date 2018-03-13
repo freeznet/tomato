@@ -1047,30 +1047,28 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 	}
 
 
-	if _, ok := options["sort"]; ok {
-		if keys, ok := options["sort"].([]string); ok {
-			postgresSort := []string{}
-			for _, key := range keys {
-				var postgresKey string
-				if strings.HasPrefix(key, "-") {
-					key = key[1:]
-					postgresKey = fmt.Sprintf(`"%s" DESC`, key)
-				} else {
-					postgresKey = fmt.Sprintf(`"%s" ASC`, key)
-				}
-				postgresSort = append(postgresSort, postgresKey)
-			}
-			sorting := strings.Join(postgresSort, ",")
-			if len(postgresSort) > 0 {
-				sortPattern = fmt.Sprintf(`ORDER BY %s`, sorting)
-			}
-		}
-	}
+	//if _, ok := options["order"]; ok {
+	//	if keys, ok := options["order"].([]string); ok {
+	//		postgresSort := []string{}
+	//		for _, key := range keys {
+	//			var postgresKey string
+	//			if strings.HasPrefix(key, "-") {
+	//				key = key[1:]
+	//				postgresKey = fmt.Sprintf(`"%s" DESC`, key)
+	//			} else {
+	//				postgresKey = fmt.Sprintf(`"%s" ASC`, key)
+	//			}
+	//			postgresSort = append(postgresSort, postgresKey)
+	//		}
+	//		sorting := strings.Join(postgresSort, ",")
+	//		if len(postgresSort) > 0 {
+	//			sortPattern = fmt.Sprintf(`ORDER BY %s`, sorting)
+	//		}
+	//	}
+	//}
 	if len(where.sorts) > 0 {
 		sortPattern = fmt.Sprintf(`ORDER BY %s`, strings.Join(where.sorts, ","))
 	}
-
-	//fmt.Printf("pipeline %v \n", pipeline)
 
 	for p := range pipeline {
 
@@ -1079,6 +1077,38 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 			columns = append(columns, "*")
 		}
 		//fmt.Println(p, pipeline[p], stage)
+		if p == "sort" {
+			postgresSort := []string{}
+			if v, ok := pipeline[p].(string); ok {
+			//	fmt.Println("ok", ok)
+				for _, key := range strings.Split(v, ",") {
+					key = strings.Trim(key, "\"")
+					var postgresKey string
+					if strings.HasPrefix(key, "-") {
+						key = key[1:]
+						postgresKey = fmt.Sprintf(`"%s" DESC`, key)
+					} else {
+						postgresKey = fmt.Sprintf(`"%s" ASC`, key)
+					}
+					postgresSort = append(postgresSort, postgresKey)
+				}
+				sorting := strings.Join(postgresSort, ",")
+				if len(postgresSort) > 0 {
+					sortPattern = fmt.Sprintf(`ORDER BY %s`, sorting)
+				}
+			}
+			//sortPattern = fmt.Sprintf(`ORDER BY %s`, strings.Join(where.sorts, ","))
+		}
+
+		if p == "limit" {
+			if v, ok := pipeline[p].(string); ok {
+				if vv, ok :=strconv.Atoi(v); ok==nil {
+					limitPattern = fmt.Sprintf(`LIMIT $%d`, len(values)+1)
+					values = append(values, vv)
+				}
+			}
+		}
+
 		if stage != nil && p == "group" {
 			for field := range stage {
 				if v, ok := stage[field].(string); ok {
@@ -1207,7 +1237,7 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		groupPattern = "GROUP BY " + strings.Join(groupby, ",")
 	}
 
-	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s`, selectPattern, className, wherePattern, sortPattern, limitPattern, skipPattern, groupPattern)
+	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s`, selectPattern, className, wherePattern,  groupPattern, sortPattern, limitPattern, skipPattern)
 
 	//fmt.Println(qs)
 	//fmt.Println(values)

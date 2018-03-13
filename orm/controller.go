@@ -108,7 +108,6 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 		classExists = false
 		parseFormatSchema["fields"] = types.M{}
 	}
-
 	if keys, ok := options["sort"].([]string); ok {
 		for i, key := range keys {
 			// sort 中的 key ，如果是要按倒序排列，则会加前缀 "-" ，所以要对其进行处理
@@ -123,7 +122,6 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 			} else if key == "_updated_at" {
 				key = "updatedAt"
 			}
-
 			if match, _ := regexp.MatchString(`^authData\.([a-zA-Z0-9_]+)\.id$`, key); match {
 				return nil, errs.E(errs.InvalidKeyName, "Cannot sort by "+key)
 			}
