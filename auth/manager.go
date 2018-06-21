@@ -4,6 +4,7 @@ import (
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
+	"fmt"
 )
 
 var providers map[string]Provider
@@ -32,6 +33,7 @@ func init() {
 		"douban":         douban{},
 		"yixin":          yixin{},
 		"youdao":         youdao{},
+		"weapp":		  weapp{},
 	}
 	options = map[string]types.M{
 		"facebook": types.M{
@@ -46,6 +48,10 @@ func init() {
 		"spotify": types.M{
 			"appIds": []string{},
 		},
+		"weapp": types.M{
+			"appid": "wx871e7bb109ba3bf6",
+			"secret": "e360f37b4a1a8ba9f99dc45b36f34536",
+		},
 	}
 }
 
@@ -56,6 +62,7 @@ func ValidateAuthData(provider string, authData types.M) error {
 		return errs.E(errs.UnsupportedService, "This authentication method is unsupported.")
 	}
 	defaultProvider := providers[provider]
+	fmt.Println(provider)
 	if defaultProvider == nil {
 		// 不支持该方式
 		return errs.E(errs.UnsupportedService, "This authentication method is unsupported.")

@@ -19,6 +19,7 @@ import (
 	"github.com/freeznet/tomato/orm"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
+	"fmt"
 )
 
 // Write ...
@@ -513,6 +514,7 @@ func (w *Write) validateAuthData() error {
 			providerAuthData := utils.M(v)
 			hasToken := (providerAuthData != nil && utils.S(providerAuthData["id"]) != "")
 			canHandleAuthData = (canHandleAuthData && (hasToken || providerAuthData == nil))
+			fmt.Println(providerAuthData, hasToken, canHandleAuthData)
 		}
 		if canHandleAuthData {
 			return w.handleAuthData(authData)
