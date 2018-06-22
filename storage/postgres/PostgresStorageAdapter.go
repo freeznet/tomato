@@ -299,6 +299,7 @@ func (p *PostgresAdapter) AddFieldIfNotExists(className, fieldName string, field
 	return tx.Commit()
 }
 
+//allowed modify the table "_SCHEMA"
 func (p *PostgresAdapter) UpdateFields(className string, schema types.M) error {
 
 	tx, err := p.db.Begin()
@@ -306,6 +307,7 @@ func (p *PostgresAdapter) UpdateFields(className string, schema types.M) error {
 		return err
 	}
 
+	//remove the target shema first
 	qs := `DELETE FROM "_SCHEMA" WHERE "className"=$1`
 	_, err = tx.Exec(qs, className)
 	if err != nil {
@@ -317,6 +319,7 @@ func (p *PostgresAdapter) UpdateFields(className string, schema types.M) error {
 		return err
 	}
 
+	//create new one with extended field
 	_, err = tx.Exec(`INSERT INTO "_SCHEMA" ("className", "schema", "isParseClass") VALUES ($1, $2, $3)`,
 		className, string(b), true)
 	if err != nil {

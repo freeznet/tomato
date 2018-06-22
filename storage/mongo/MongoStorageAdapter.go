@@ -419,6 +419,12 @@ func (m *MongoAdapter) HandleShutdown() {
 	m.db.Session.Close()
 }
 
+//allowed modify the table "_SCHEMA"
+func (m *MongoAdapter) UpdateFields(className string, schema types.M) error {
+	//EMPTY
+	return nil
+}
+
 func storageAdapterAllCollections(m *MongoAdapter) []*MongoCollection {
 	names := m.getCollectionNames()
 	collections := []*MongoCollection{}
