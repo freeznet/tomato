@@ -299,6 +299,39 @@ func (p *PostgresAdapter) AddFieldIfNotExists(className, fieldName string, field
 	return tx.Commit()
 }
 
+func (p *PostgresAdapter) UpdateFields(className string, schema types.M) error {
+
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	qs := `DELETE FROM "_SCHEMA" WHERE "className"=$1`
+	_, err = tx.Exec(qs, className)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(schema)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`INSERT INTO "_SCHEMA" ("className", "schema", "isParseClass") VALUES ($1, $2, $3)`,
+		className, string(b), true)
+	if err != nil {
+		if e, ok := err.(*pq.Error); ok {
+			if e.Code == postgresUniqueIndexViolationError {
+				return errs.E(errs.DuplicateValue, "Class "+className+" already exists.")
+			}
+		}
+		return err
+	}
+
+
+	return tx.Commit()
+}
+
 // DeleteClass 删除指定表
 func (p *PostgresAdapter) DeleteClass(className string) (types.M, error) {
 	tx, err := p.db.Begin()

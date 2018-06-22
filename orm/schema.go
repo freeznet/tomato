@@ -193,12 +193,15 @@ func (s *Schema) UpdateClass(className string, submittedFields types.M, classLev
 	// 组装写入数据库的数据
 	existingFields["_id"] = className
 	newSchema := buildMergedSchemaObject(existingFields, submittedFields)
+
+
 	delete(existingFields, "_id")
 	existingFieldNames := map[string]bool{}
 	for k := range existingFields {
 		existingFieldNames[k] = true
 	}
 	err = s.validateSchemaData(className, newSchema, classLevelPermissions, existingFieldNames)
+
 	if err != nil {
 		return nil, err
 	}
@@ -226,6 +229,7 @@ func (s *Schema) UpdateClass(className string, submittedFields types.M, classLev
 		}
 	}
 
+
 	// 重新加载修改过的数据
 	s.reloadData(types.M{"clearCache": true})
 
@@ -237,6 +241,7 @@ func (s *Schema) UpdateClass(className string, submittedFields types.M, classLev
 			return nil, err
 		}
 	}
+
 
 	// 设置 CLP
 	err = s.setPermissions(className, classLevelPermissions, newSchema)
@@ -310,6 +315,7 @@ func (s *Schema) deleteFields(fieldNames []string, className string) error {
 	s.cache.Clear()
 	return nil
 }
+
 
 // validateObject 校验对象是否合法
 func (s *Schema) validateObject(className string, object, query types.M) error {
