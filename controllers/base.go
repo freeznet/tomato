@@ -59,7 +59,6 @@ func (b *BaseController) Prepare() {
 	info.SessionToken = b.Ctx.Input.Header("X-Parse-Session-Token")
 	info.InstallationID = b.Ctx.Input.Header("X-Parse-Installation-Id")
 	info.ClientVersion = b.Ctx.Input.Header("X-Parse-Client-Version")
-
 	basicAuth := httpAuth(b.Ctx.Input.Header("Authorization"))
 	if basicAuth != nil {
 		info.AppID = basicAuth["appId"]

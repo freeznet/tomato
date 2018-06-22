@@ -4,6 +4,7 @@ import (
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/utils"
 	"github.com/freeznet/tomato/cloud"
+	"github.com/freeznet/tomato/types"
 )
 
 var adapter filesAdapter
@@ -36,7 +37,7 @@ func GetFileData(filename string) ([]byte, error) {
 }
 
 // CreateFile 创建文件，返回文件地址与文件名
-func CreateFile(filename string, data []byte, contentType string) map[string]string {
+func CreateFile(filename string, data []byte, contentType string, user types.M) map[string]string {
 	extname := utils.ExtName(filename)
 	if extname == "" && contentType != "" && utils.LookupExtension(contentType) != "" {
 		filename = filename + "." + utils.LookupExtension(contentType)
@@ -51,7 +52,7 @@ func CreateFile(filename string, data []byte, contentType string) map[string]str
 	//if hasBeforeFileUploadHook == false {
 	//	return nil
 	//}
-	response, err := maybeRunTrigger(cloud.TypeBeforeFileUpload, extname, orifilename, data, contentType)
+	response, err := maybeRunTrigger(cloud.TypeBeforeFileUpload, extname, orifilename, data, contentType, user)
 	if err != nil {
 		return nil
 	}

@@ -5,7 +5,7 @@ import (
 	"github.com/freeznet/tomato/types"
 )
 
-func getRequest(triggerType string, orifilename string, data []byte, contentType string, filename string, location string) cloud.TriggerRequest {
+func getRequest(triggerType string, orifilename string, data []byte, contentType string, filename string, location string, user types.M) cloud.TriggerRequest {
 	request := cloud.TriggerRequest{
 		TriggerName: triggerType,
 		Object:      nil,
@@ -27,6 +27,9 @@ func getRequest(triggerType string, orifilename string, data []byte, contentType
 	if location != "" {
 		request.Location = location
 	}
+	if user != nil {
+		request.User = user
+	}
 
 	return request
 }
@@ -39,7 +42,7 @@ func getResponse(request cloud.TriggerRequest) *cloud.TriggerResponse {
 }
 
 
-func maybeRunTrigger(triggerType string, className string, orifilename string, data []byte, contentType string) (types.M, error) {
+func maybeRunTrigger(triggerType string, className string, orifilename string, data []byte, contentType string, user types.M) (types.M, error) {
 	if data == nil {
 		return types.M{}, nil
 	}
@@ -48,7 +51,7 @@ func maybeRunTrigger(triggerType string, className string, orifilename string, d
 	if trigger == nil {
 		return types.M{}, nil
 	}
-	request := getRequest(triggerType, orifilename, data, contentType, "", "")
+	request := getRequest(triggerType, orifilename, data, contentType, "", "", user)
 	response := getResponse(request)
 	trigger(request, response)
 	return response.Response, response.Err
@@ -63,7 +66,7 @@ func maybeRunAfterTrigger(triggerType string, className, orifilename, filename, 
 	if trigger == nil {
 		return types.M{}, nil
 	}
-	request := getRequest(triggerType, orifilename, nil, "", filename, location)
+	request := getRequest(triggerType, orifilename, nil, "", filename, location, types.M{})
 	response := getResponse(request)
 	trigger(request, response)
 	return response.Response, response.Err
