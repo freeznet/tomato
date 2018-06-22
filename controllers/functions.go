@@ -70,6 +70,17 @@ func (f *FunctionsController) HandleCloudFunction() {
 		return
 	}
 
+	if response.Response != nil  {
+		v, ok :=response.Response["result"].(types.M)
+		if ok {
+			f.Ctx.Output.Header("Content-Type", v["Content-Type"].(string))
+			f.Ctx.Output.Header("Content-Length", v["Content-Length"].(string))
+			f.Ctx.Output.Header("Content-Disposition", "attachment; filename="+v["filename"].(string))
+			f.Ctx.Output.Body(v["data"].([]byte))
+			return
+		}
+	}
+
 	f.Data["json"] = response.Response
 	f.ServeJSON()
 }
@@ -128,8 +139,19 @@ func (f *FunctionsController) HandleCloudFunctionGet() {
 		return
 	}
 
+	if response.Response != nil  {
+		v, ok :=response.Response["result"].(types.M)
+		if ok {
+			f.Ctx.Output.Header("Content-Type", v["Content-Type"].(string))
+			f.Ctx.Output.Header("Content-Length", v["Content-Length"].(string))
+			f.Ctx.Output.Header("Content-Disposition", "attachment; filename="+v["filename"].(string))
+			f.Ctx.Output.Body(v["data"].([]byte))
+			return
+		}
+	}
 	f.Data["json"] = response.Response
 	f.ServeJSON()
+
 }
 
 // Get ...

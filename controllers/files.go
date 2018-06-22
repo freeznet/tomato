@@ -8,6 +8,7 @@ import (
 	"github.com/freeznet/tomato/files"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
+	"io/ioutil"
 )
 
 // FilesController 处理 /files 接口的请求
@@ -70,15 +71,42 @@ func (f *FilesController) HandleCreate() {
 		return
 	}
 	contentType := f.Ctx.Input.Header("Content-type")
-	result := files.CreateFile(filename, data, contentType)
-	if result != nil && result["url"] != "" {
-		f.Ctx.Output.SetStatus(201)
-		f.Ctx.Output.Header("location", result["url"])
-		f.Data["json"] = result
-		f.ServeJSON()
+	if strings.Contains(contentType, "multipart/form-data") {
+		_, h, err := f.GetFile(filename)
+		if err != nil {
+			f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
+		}
+		fd, err := h.Open()
+		if err != nil {
+			f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
+		}
+		defer fd.Close()
+		data, err := ioutil.ReadAll(fd)
+		if err != nil {
+			f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
+		}
+		contentType = h.Header.Get("Content-Type")
+		result := files.CreateFile(filename, data, contentType)
+		if result != nil && result["url"] != "" {
+			f.Ctx.Output.SetStatus(201)
+			f.Ctx.Output.Header("location", result["url"])
+			f.Data["json"] = result
+			f.ServeJSON()
+		} else {
+			f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
+		}
 	} else {
-		f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
+		result := files.CreateFile(filename, data, contentType)
+		if result != nil && result["url"] != "" {
+			f.Ctx.Output.SetStatus(201)
+			f.Ctx.Output.Header("location", result["url"])
+			f.Data["json"] = result
+			f.ServeJSON()
+		} else {
+			f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
+		}
 	}
+
 }
 
 // HandleDelete 处理删除文件请求
