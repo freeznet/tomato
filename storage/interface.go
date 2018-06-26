@@ -25,4 +25,5 @@ type Adapter interface {
 	EnsureUniqueness(className string, schema types.M, fieldNames []string) error
 	PerformInitialization(options types.M) error
 	HandleShutdown()
+	UpdateFields(className string, schema types.M) error
 }

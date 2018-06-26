@@ -9,6 +9,7 @@ import (
 
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
+	"fmt"
 )
 
 func Test_parseTypeToPostgresType(t *testing.T) {
@@ -1841,7 +1842,8 @@ func Test_literalizeRegexPart(t *testing.T) {
 }
 
 func openDB() *sql.DB {
-	db, err := sql.Open("postgres", "postgres://postgres:123456@192.168.99.100:5432/postgres?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres:45678zzr@localhost:5432/test?sslmode=disable")
+	//db, err := sql.Open("postgres", "postgres://postgres:123456@192.168.99.100:5432/postgres?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -2159,6 +2161,79 @@ func TestPostgresAdapter_CreateClass(t *testing.T) {
 		tt.clean(tt.args.className)
 	}
 }
+
+
+func Test_UpdateFields(t *testing.T){
+	//open database
+	db := openDB()
+	p := NewPostgresAdapter("tomato", db);
+	p.ensureSchemaCollectionExists();
+
+	//create the test case
+	test := []struct{
+		name string;
+		arg types.M;
+		want types.M;
+	}{
+		{
+			name:"test1",
+			arg:types.M{
+				"className":"test1",
+				"schema": "cccc",
+				"isParseClass":true,
+			},
+			want:nil,
+		}, {
+			name:"test2",
+			arg:types.M{
+				"className":"test2",
+				"schema": types.M{
+					"type":"String",
+				},
+				"isParseClass":true,
+			},
+			want:nil,
+		},{
+			name:"test3",
+			arg:types.M{
+				"className":"test3",
+				"schema": types.M{
+					"type":"String",
+					"subName":"ccc",
+				},
+				"isParseClass":true,
+			},
+			want:nil,
+		},{
+			name:"test4",
+			arg:types.M{
+				"className":"notExist",
+				"schema": types.M{
+					"type":"String",
+					"subName":"ccc",
+				},
+				"isParseClass":true,
+			},
+			want:nil,
+		},
+	}
+
+
+	for _, tt := range test{
+		p.CreateClass(tt.name,nil);
+
+		err := p.UpdateFields(tt.name, tt.arg);
+
+		fmt.Println(err);
+		if reflect.DeepEqual(err, tt.want) {
+			t.Errorf("%q. PostgresAdapter.PerformInitialization() error = %v, wantErr %v", tt.name, err, tt.want);
+		}
+
+		p.DeleteClass(tt.name);
+	}
+	db.Close();
+}
+
 
 func TestPostgresAdapter_PerformInitialization(t *testing.T) {
 	db := openDB()
