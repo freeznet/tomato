@@ -91,6 +91,7 @@ type Config struct {
 	HDFSNameNode            string            // HDFS Name Node 地址
 	HDFSUser                string            // HDFS 用户名
 	HDFSRoot                string            // HDFS 存储根目录
+	PgMaxConnections                int            // Postgres Max Connections
 }
 
 var (
@@ -200,6 +201,10 @@ func parseConfig() {
 	TConfig.HDFSNameNode = beego.AppConfig.String("HDFSNameNode")
 	TConfig.HDFSUser = beego.AppConfig.String("HDFSUser")
 	TConfig.HDFSRoot = beego.AppConfig.String("HDFSRoot")
+
+	if TConfig.DatabaseType == "PostgreSQL" {
+		TConfig.PgMaxConnections = beego.AppConfig.DefaultInt("PgMaxConnections", 100)
+	}
 }
 
 // Validate 校验用户参数合法性

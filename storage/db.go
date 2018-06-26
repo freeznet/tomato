@@ -30,5 +30,8 @@ func OpenPostgreSQL() *sql.DB {
 	if err != nil {
 		panic(err)
 	}
+	// we use 80% of pg max connections
+	db.SetMaxOpenConns(int(float64(config.TConfig.PgMaxConnections) * 0.7))
+	db.SetMaxIdleConns(int(float64(config.TConfig.PgMaxConnections) * 0.1))
 	return db
 }
