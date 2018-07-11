@@ -2600,3 +2600,87 @@ func valueToDate(v interface{}) types.M {
 	}
 	return nil
 }
+func (p *PostgresAdapter) RawQuery(query string, resultField []string, args ...interface{}) (result [] interface{}, err error) {
+
+	fieldLen := len(resultField)
+	var buffer bytes.Buffer
+	data := make([]interface{}, fieldLen) // 存数据slice
+	buff := make([]interface{}, fieldLen) // 临时slice
+	for i := 0; i < fieldLen; i++ {
+		buffer.WriteString(",")
+		buffer.WriteString(("\""))
+		buffer.WriteString(resultField[i])
+		buffer.WriteString(("\""))
+		buff[i] = &data[i]
+	}
+	buffer.WriteString(" ")
+	query = strings.Replace(query, "*", buffer.String()[1:], 1)
+
+	rows, err :=p.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(buff...)
+		if err != nil {
+			return nil, err
+		}
+		line := make(map[string]interface{})
+		for i := 0; i < fieldLen; i++ {
+			line[resultField[i]] = data[i]
+		}
+		result = append(result, line)
+
+	}
+	return result, nil
+}
+func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	var buffer bytes.Buffer
+	var m bytes.Buffer
+	buffer.WriteString("insert into")
+	buffer.WriteString(("\""))
+	buffer.WriteString(className)
+	buffer.WriteString(("\"("))
+	for i, field := range fields {
+		if i > 0 {
+			buffer.WriteString(",")
+			m.WriteString(",")
+		}
+		m.WriteString("$")
+		m.WriteString(strconv.Itoa(i + 1))
+		buffer.WriteString("\"")
+		buffer.WriteString(field)
+		buffer.WriteString("\"")
+	}
+
+	buffer.WriteString(")values(")
+	buffer.WriteString(m.String())
+	buffer.WriteString(")")
+	stmt, err := tx.Prepare(buffer.String())
+	if err != nil {
+		return err
+	}
+	for _, value := range objects {
+		_, err = stmt.Exec(value...)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}

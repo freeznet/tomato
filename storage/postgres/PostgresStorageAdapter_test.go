@@ -6138,3 +6138,27 @@ func TestPostgresAdapter_EnsureUniqueness(t *testing.T) {
 		}
 	}
 }
+func TestPostgresAdapter_RawQuery(t *testing.T) {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	sql := `select *from "MeterData" where "serialNumber"=$1 and "createdAt" between $2 and $3 order by "createdAt" desc  `
+	field := []string{"serialNumber", "current","voltage","createdAt"}//需要返回的字段
+	result, err := p.RawQuery(sql, field, "222","2018-07-10 10:02:00" ,"2018-07-10 10:10:00" )
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println(result)
+}
+func TestPostgresAdapter_RawBatchInsert(t *testing.T) {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	var values = [][]interface{}{
+		{"a", "aa", 20},
+		{ "b", "bb", 21},
+		{"c", "cc", 22},
+	}
+	err:=p.RawBatchInsert("Test", values, []string{"serialNumber", "hardVersion", "id"})
+	if err!=nil{
+		log.Println(err)
+	}
+}
