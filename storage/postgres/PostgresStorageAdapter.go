@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"regexp"
-
+    "bytes"
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
 	"github.com/lib/pq"
+	"reflect"
 )
 
 const postgresSchemaCollectionName = "_SCHEMA"
@@ -2600,36 +2601,57 @@ func valueToDate(v interface{}) types.M {
 	}
 	return nil
 }
-func (p *PostgresAdapter) RawQuery(query string, resultField []string, args ...interface{}) (result [] interface{}, err error) {
-
-	fieldLen := len(resultField)
-	var buffer bytes.Buffer
-	data := make([]interface{}, fieldLen) // 存数据slice
-	buff := make([]interface{}, fieldLen) // 临时slice
-	for i := 0; i < fieldLen; i++ {
-		buffer.WriteString(",")
-		buffer.WriteString(("\""))
-		buffer.WriteString(resultField[i])
-		buffer.WriteString(("\""))
-		buff[i] = &data[i]
+func getFields(query string) (int, []string, error) {
+	fromIndex:=strings.Index(strings.ToUpper(query),"FROM")
+	if fromIndex==-1{
+		return -1,nil, errs.E(errs.InvalidQuery,"unvalid sql")
 	}
-	buffer.WriteString(" ")
-	query = strings.Replace(query, "*", buffer.String()[1:], 1)
+	fields := strings.Split(query[:fromIndex],",")
 
-	rows, err :=p.db.Query(query, args...)
+
+	if fromIndex < 2 {
+		return -1, nil, errs.E(errs.InvalidQuery,"unvalid sql")
+
+	}
+	for i,v:=range fields{
+		m:=strings.Fields(v)
+		fields[i]=m[len(m)-1]
+		fields[i]=strings.Replace(fields[i],"\"","",-1)
+	}
+	return len(fields), fields, nil
+}
+func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []types.M, err error) {
+
+	n, fields, err := getFields(query)
+
 	if err != nil {
 		return nil, err
 	}
 
+	data := make([]interface{}, n) // 保存数据slice
+	buff := make([]interface{}, n) // 临时数据slice
+	for i := 0; i < n; i++ {
+		buff[i] = &data[i]
+	}
+	rows, err := p.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(buff...)
 		if err != nil {
 			return nil, err
 		}
+
 		line := make(map[string]interface{})
-		for i := 0; i < fieldLen; i++ {
-			line[resultField[i]] = data[i]
+		for i := 0; i < n; i++ {
+			switch reflect.TypeOf(data[i]).Kind(){
+			case reflect.Array,reflect.Slice:
+				b := data[i].([]byte)
+				data[i]= string(b)
+			}
+			line[fields[i]] = data[i]
 		}
 		result = append(result, line)
 

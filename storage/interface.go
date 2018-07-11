@@ -26,6 +26,6 @@ type Adapter interface {
 	PerformInitialization(options types.M) error
 	HandleShutdown()
 	UpdateFields(className string, schema types.M) error
-	RawQuery(query string, filed []string, args ...interface{})(result [] interface{}, err error)
+	RawQuery(query string, args ...interface{}) (result []types.M, err error)
 	RawBatchInsert(className string, objects [][]interface{}, fields []string) error
 }
