@@ -2603,16 +2603,11 @@ func valueToDate(v interface{}) types.M {
 }
 func getFields(query string) (int, []string, error) {
 	fromIndex:=strings.Index(strings.ToUpper(query),"FROM")
-	if fromIndex==-1{
-		return -1,nil, errs.E(errs.InvalidQuery,"unvalid sql")
+	if fromIndex<2{
+		return -1,nil, errs.E(errs.InvalidQuery,"invalid sql")
 	}
 	fields := strings.Split(query[:fromIndex],",")
 
-
-	if fromIndex < 2 {
-		return -1, nil, errs.E(errs.InvalidQuery,"unvalid sql")
-
-	}
 	for i,v:=range fields{
 		m:=strings.Fields(v)
 		fields[i]=m[len(m)-1]
