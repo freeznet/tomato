@@ -2654,6 +2654,21 @@ func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []
 	return result, nil
 }
 func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
+	var rperm, wperm = false, false
+	n := 5
+	for _, v := range fields {
+		if v == "objectId" || v == "createdAt" || v == "updatedAt" {
+			return errs.E(errs.ValidationError, "the "+v+" has already existed")
+		}
+		if v == "_rperm" {
+			rperm = true
+			n--
+		}
+		if v == "_wperm" {
+			wperm = true
+			n--
+		}
+	}
 	tx, err := p.db.Begin()
 	if err != nil {
 		return err
@@ -2664,26 +2679,50 @@ func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface
 	buffer.WriteString(("\""))
 	buffer.WriteString(className)
 	buffer.WriteString(("\"("))
-	for i, field := range fields {
+	for i := 0; i < len(fields)+n; i++ {
 		if i > 0 {
-			buffer.WriteString(",")
 			m.WriteString(",")
+		}
+		if i > 0 && i < len(fields) {
+			buffer.WriteString(",")
+
+		}
+		if i < len(fields) {
+			buffer.WriteString("\"")
+			buffer.WriteString(fields[i])
+			buffer.WriteString("\"")
 		}
 		m.WriteString("$")
 		m.WriteString(strconv.Itoa(i + 1))
-		buffer.WriteString("\"")
-		buffer.WriteString(field)
-		buffer.WriteString("\"")
 	}
+	buffer.WriteString(",\"objectId\",")
+	buffer.WriteString("\"createdAt\",")
+	buffer.WriteString("\"updatedAt\",")
+	if !rperm {
+		buffer.WriteString("\"_rperm\",")
+	}
+	if !wperm {
+		buffer.WriteString("\"_wperm\"")
 
+	}
 	buffer.WriteString(")values(")
 	buffer.WriteString(m.String())
 	buffer.WriteString(")")
+	fmt.Println(buffer.String())
 	stmt, err := tx.Prepare(buffer.String())
 	if err != nil {
 		return err
 	}
 	for _, value := range objects {
+		value = append(value, utils.CreateObjectID())
+		value = append(value, time.Now())
+		value = append(value, time.Now())
+		if !rperm {
+			value = append(value, nil)
+		}
+		if !wperm {
+			value = append(value, nil)
+		}
 		_, err = stmt.Exec(value...)
 		if err != nil {
 			return err
