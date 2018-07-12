@@ -6179,12 +6179,12 @@ func TestPostgresAdapter_RawBatchInsert(t *testing.T) {
 	db := openDB()
 	p := NewPostgresAdapter("", db)
 	var values = [][]interface{}{
-		{"a", "aa", 20},
-		{ "b", "bb", 21},
-		{"c", "cc", 22},
+		{ "a", "aa","{role:Guest}"},
+		{ "b", "bb",nil},
+		{ "c", "cc",nil},
 	}
-	err:=p.RawBatchInsert("Test", values, []string{"serialNumber", "hardVersion", "id"})
-	if err!=nil{
+	err := p.RawBatchInsert("Test", values, []string{"serialNumber", "hardVersion","_rperm"})
+	if err != nil {
 		log.Println(err)
 	}
 }

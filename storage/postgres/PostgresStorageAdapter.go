@@ -2708,15 +2708,12 @@ func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface
 	buffer.WriteString(")values(")
 	buffer.WriteString(m.String())
 	buffer.WriteString(")")
-	fmt.Println(buffer.String())
 	stmt, err := tx.Prepare(buffer.String())
 	if err != nil {
 		return err
 	}
 	for _, value := range objects {
-		value = append(value, utils.CreateObjectID())
-		value = append(value, time.Now())
-		value = append(value, time.Now())
+		value = append(value, utils.CreateObjectID(),time.Now(),time.Now())
 		if !rperm {
 			value = append(value, nil)
 		}
