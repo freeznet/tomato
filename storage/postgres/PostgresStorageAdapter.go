@@ -2675,8 +2675,7 @@ func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface
 	}
 	var buffer bytes.Buffer
 	var m bytes.Buffer
-	buffer.WriteString("insert into")
-	buffer.WriteString(("\""))
+	buffer.WriteString("insert into \"")
 	buffer.WriteString(className)
 	buffer.WriteString(("\"("))
 	for i := 0; i < len(fields)+n; i++ {
@@ -2695,9 +2694,7 @@ func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface
 		m.WriteString("$")
 		m.WriteString(strconv.Itoa(i + 1))
 	}
-	buffer.WriteString(",\"objectId\",")
-	buffer.WriteString("\"createdAt\",")
-	buffer.WriteString("\"updatedAt\",")
+	buffer.WriteString(",\"objectId\",\"createdAt\",\"updatedAt\",")
 	if !rperm {
 		buffer.WriteString("\"_rperm\",")
 	}
