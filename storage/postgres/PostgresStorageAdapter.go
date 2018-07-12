@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"regexp"
-
+    "bytes"
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
 	"github.com/lib/pq"
+	"reflect"
 )
 
 const postgresSchemaCollectionName = "_SCHEMA"
@@ -2597,6 +2598,139 @@ func valueToDate(v interface{}) types.M {
 			"__type": "Date",
 			"iso":    utils.TimetoString(v),
 		}
+	}
+	return nil
+}
+func getFields(query string) (int, []string, error) {
+	fromIndex:=strings.Index(strings.ToUpper(query),"FROM")
+	if fromIndex<2{
+		return -1,nil, errs.E(errs.InvalidQuery,"invalid sql")
+	}
+	fields := strings.Split(query[:fromIndex],",")
+
+	for i,v:=range fields{
+		m:=strings.Fields(v)
+		fields[i]=m[len(m)-1]
+		fields[i]=strings.Replace(fields[i],"\"","",-1)
+	}
+	return len(fields), fields, nil
+}
+func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []types.M, err error) {
+
+	n, fields, err := getFields(query)
+
+	if err != nil {
+		return nil, err
+	}
+
+	data := make([]interface{}, n) // 保存数据slice
+	buff := make([]interface{}, n) // 临时数据slice
+	for i := 0; i < n; i++ {
+		buff[i] = &data[i]
+	}
+	rows, err := p.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(buff...)
+		if err != nil {
+			return nil, err
+		}
+
+		line := make(map[string]interface{})
+		for i := 0; i < n; i++ {
+			switch reflect.TypeOf(data[i]).Kind(){
+			case reflect.Array,reflect.Slice:
+				b := data[i].([]byte)
+				data[i]= string(b)
+			}
+			line[fields[i]] = data[i]
+		}
+		result = append(result, line)
+
+	}
+	return result, nil
+}
+func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
+	var rperm, wperm = false, false
+	n := 5
+	for _, v := range fields {
+		if v == "objectId" || v == "createdAt" || v == "updatedAt" {
+			return errs.E(errs.ValidationError, "the "+v+" has already existed")
+		}
+		if v == "_rperm" {
+			rperm = true
+			n--
+		}
+		if v == "_wperm" {
+			wperm = true
+			n--
+		}
+	}
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	var buffer bytes.Buffer
+	var m bytes.Buffer
+	buffer.WriteString("insert into \"")
+	buffer.WriteString(className)
+	buffer.WriteString(("\"("))
+	for i := 0; i < len(fields)+n; i++ {
+		if i > 0 {
+			m.WriteString(",")
+		}
+		if i > 0 && i < len(fields) {
+			buffer.WriteString(",")
+
+		}
+		if i < len(fields) {
+			buffer.WriteString("\"")
+			buffer.WriteString(fields[i])
+			buffer.WriteString("\"")
+		}
+		m.WriteString("$")
+		m.WriteString(strconv.Itoa(i + 1))
+	}
+	buffer.WriteString(",\"objectId\",\"createdAt\",\"updatedAt\",")
+	if !rperm {
+		buffer.WriteString("\"_rperm\",")
+	}
+	if !wperm {
+		buffer.WriteString("\"_wperm\"")
+
+	}
+	buffer.WriteString(")values(")
+	buffer.WriteString(m.String())
+	buffer.WriteString(")")
+	stmt, err := tx.Prepare(buffer.String())
+	if err != nil {
+		return err
+	}
+	for _, value := range objects {
+		value = append(value, utils.CreateObjectID(),time.Now(),time.Now())
+		if !rperm {
+			value = append(value, nil)
+		}
+		if !wperm {
+			value = append(value, nil)
+		}
+		_, err = stmt.Exec(value...)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
 	}
 	return nil
 }

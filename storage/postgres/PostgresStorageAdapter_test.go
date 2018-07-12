@@ -6138,3 +6138,53 @@ func TestPostgresAdapter_EnsureUniqueness(t *testing.T) {
 		}
 	}
 }
+func TestPostgresAdapter_RawQuery1(t *testing.T) {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	sql := `select *from "MeterData" where "serialNumber"=$1 and "createdAt" between $2 and $3 order by "createdAt" desc  `
+	result, err := p.RawQuery(sql,  "222","2018-07-10 10:02:00" ,"2018-07-10 10:10:00" )
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println(result)
+}
+func TestPostgresAdapter_RawQuery2(t *testing.T) {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	sql := `SELECT
+	"order".goods_id,
+	goods_name,
+	goods_size,
+	SUM (order_num) AS order_num,
+	SUM (
+		order_num * "order".goods_price
+	)AS order_count
+FROM
+	"order"
+INNER JOIN goods ON goods.goods_id = "order".goods_id
+AND "order".order_time BETWEEN $1
+		AND  $2
+GROUP BY
+	"order".goods_id,
+	"order".goods_size,
+	goods_name
+ORDER BY order_count`
+	result, err := p.RawQuery(sql,  "2018-04-20 10:02:00", "2018-05-20 10:10:00")
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println(result)
+}
+func TestPostgresAdapter_RawBatchInsert(t *testing.T) {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	var values = [][]interface{}{
+		{ "a", "aa","{role:Guest}"},
+		{ "b", "bb",nil},
+		{ "c", "cc",nil},
+	}
+	err := p.RawBatchInsert("Test", values, []string{"serialNumber", "hardVersion","_rperm"})
+	if err != nil {
+		log.Println(err)
+	}
+}
