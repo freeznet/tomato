@@ -32,7 +32,7 @@ func ExtName(filename string) string {
 		if s == nil || len(s) == 0 {
 			return ""
 		}
-		return s[len(s)-1]
+		return strings.ToLower(s[len(s)-1])
 	}
 
 	return ""

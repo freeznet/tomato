@@ -72,7 +72,7 @@ func (f *FunctionsController) HandleCloudFunction() {
 
 	if response.Response != nil  {
 		v, ok :=response.Response["result"].(types.M)
-		if ok {
+		if ok && v["Content-Type"] != nil{
 			f.Ctx.Output.Header("Content-Type", v["Content-Type"].(string))
 			f.Ctx.Output.Header("Content-Length", v["Content-Length"].(string))
 			f.Ctx.Output.Header("Content-Disposition", "attachment; filename="+v["filename"].(string))

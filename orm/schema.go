@@ -1188,9 +1188,6 @@ func injectDefaultSchema(schema types.M) types.M {
 	if fields == nil {
 		fields = types.M{}
 	}
-	for k, v := range fields {
-		newfields[k] = v
-	}
 	defaultFieldsSchema := DefaultColumns["_Default"]
 	for k, v := range defaultFieldsSchema {
 		newfields[k] = v
@@ -1200,6 +1197,9 @@ func injectDefaultSchema(schema types.M) types.M {
 		for k, v := range defaultSchema {
 			newfields[k] = v
 		}
+	}
+	for k, v := range fields {
+		newfields[k] = v
 	}
 	newSchema["fields"] = newfields
 	newSchema["className"] = schema["className"]
