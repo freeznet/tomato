@@ -14,6 +14,7 @@ import (
 	"github.com/freeznet/tomato/storage/postgres"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
+	"reflect"
 )
 
 // TomatoDBController ...
@@ -479,9 +480,11 @@ func (d *DBController) Create(className string, object, options types.M) error {
 	object = transformObjectACL(object)
 
 	if v, ok := object["createdAt"]; ok {
-		object["createdAt"] = types.M{
-			"__type": "Date",
-			"iso":    v,
+		if reflect.TypeOf(v).String() == "string" {
+			object["createdAt"] = types.M{
+				"__type": "Date",
+				"iso":    v,
+			}
 		}
 	}
 	if v, ok := object["updatedAt"]; ok {

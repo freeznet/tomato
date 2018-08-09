@@ -19,7 +19,6 @@ import (
 	"github.com/freeznet/tomato/orm"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
-	"fmt"
 )
 
 // Write ...
@@ -514,7 +513,6 @@ func (w *Write) validateAuthData() error {
 			providerAuthData := utils.M(v)
 			hasToken := (providerAuthData != nil && utils.S(providerAuthData["id"]) != "")
 			canHandleAuthData = (canHandleAuthData && (hasToken || providerAuthData == nil))
-			fmt.Println(providerAuthData, hasToken, canHandleAuthData)
 		}
 		if canHandleAuthData {
 			return w.handleAuthData(authData)
@@ -717,7 +715,9 @@ func (w *Write) setRequiredFieldsIfNeeded() error {
 		w.data["updatedAt"] = w.updatedAt
 		if w.query == nil {
 			// create 请求时，添加 createdAt，创建 objectId
-			w.data["createdAt"] = w.updatedAt
+			if w.data["createdAt"] == nil {
+				w.data["createdAt"] = w.updatedAt
+			}
 
 			if w.data["objectId"] == nil {
 				w.data["objectId"] = utils.CreateObjectID()
