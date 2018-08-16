@@ -34,7 +34,7 @@ func init() {
 		Adapter = postgres.NewPostgresAdapter("tomato", storage.OpenPostgreSQL())
 	} else {
 		// 默认连接 MongoDB
-		Adapter = mongo.NewMongoAdapter("tomato", storage.OpenMongoDB())
+		Adapter = postgres.NewPostgresAdapter("tomato", storage.OpenPostgreSQL())
 	}
 	schemaCache = cache.NewSchemaCache(config.TConfig.SchemaCacheTTL, config.TConfig.EnableSingleSchemaCache)
 	TomatoDBController = &DBController{}

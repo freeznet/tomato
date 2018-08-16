@@ -159,11 +159,11 @@ func (a *Auth) GetUserRoles() []string {
 
 // loadRoles 从数据库加载用户角色列表
 func (a *Auth) loadRoles() []string {
-	cachedRoles := cache.Role.Get(utils.S(a.User["objectId"]))
-	if cachedRoles != nil {
+	cachedRoles, ok := cache.Role.Get(utils.S(a.User["objectId"])).([]string)
+	if ok && cachedRoles != nil {
 		a.FetchedRoles = true
-		a.UserRoles = cachedRoles.([]string)
-		return cachedRoles.([]string)
+		a.UserRoles = cachedRoles
+		return cachedRoles
 	}
 
 	users := types.M{
