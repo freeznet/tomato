@@ -80,13 +80,13 @@ func CreateFile(filename string, data []byte, contentType string, user types.M) 
 	if err != nil {
 		return nil
 	}
-	if result == nil {
-		return types.M{
-			"url":  location,
-			"name": filename,
-		}
+
+	return types.M{
+		"url":  location,
+		"name": filename,
+		"data": result["data"],
 	}
-	return result
+
 }
 
 // DeleteFile 删除文件
