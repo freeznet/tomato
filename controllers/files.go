@@ -89,7 +89,6 @@ func (f *FilesController) HandleCreate() {
 		result := files.CreateFile(filename, data, contentType, f.Auth.User)
 		if result != nil && result["url"] != "" {
 			f.Ctx.Output.SetStatus(201)
-			f.Ctx.Output.Header("location", result["url"])
 			f.Data["json"] = result
 			f.ServeJSON()
 		} else {
@@ -99,7 +98,6 @@ func (f *FilesController) HandleCreate() {
 		result := files.CreateFile(filename, data, contentType, f.Auth.User)
 		if result != nil && result["url"] != "" {
 			f.Ctx.Output.SetStatus(201)
-			f.Ctx.Output.Header("location", result["url"])
 			f.Data["json"] = result
 			f.ServeJSON()
 		} else {
