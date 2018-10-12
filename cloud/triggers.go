@@ -20,9 +20,9 @@ const (
 	// TypeBeforeFind 查询前回调
 	TypeBeforeFind = "beforeFind"
 	// TypeAfterFind 查询后回调
-	TypeAfterFind = "afterFind"
+	TypeAfterFind        = "afterFind"
 	TypeBeforeFileUpload = "beforeFile"
-	TypeAfterFileUpload = "afterFile"
+	TypeAfterFileUpload  = "afterFile"
 )
 
 // TriggerRequest ...
@@ -36,11 +36,11 @@ type TriggerRequest struct {
 	Master         bool
 	User           types.M
 	InstallationID string
-	OriFilename string			// beforeFile 时使用
-	Filename string			// beforeFile 时使用
-	Location string			// beforeFile 时使用
-	Data []byte				// beforeFile 时使用
-	ContentType string		// beforeFile 时使用
+	OriFilename    string // beforeFile 时使用
+	Filename       string // beforeFile 时使用
+	Location       string // beforeFile 时使用
+	Data           []byte // beforeFile 时使用
+	ContentType    string // beforeFile 时使用
 }
 
 // FunctionRequest ...
@@ -86,14 +86,14 @@ var jobs map[string]JobHandler
 
 func init() {
 	triggers = map[string]map[string]TriggerHandler{
-		TypeBeforeSave:   map[string]TriggerHandler{},
-		TypeAfterSave:    map[string]TriggerHandler{},
-		TypeBeforeDelete: map[string]TriggerHandler{},
-		TypeAfterDelete:  map[string]TriggerHandler{},
-		TypeBeforeFind:   map[string]TriggerHandler{},
-		TypeAfterFind:    map[string]TriggerHandler{},
-		TypeBeforeFileUpload:    map[string]TriggerHandler{},
-		TypeAfterFileUpload:    map[string]TriggerHandler{},
+		TypeBeforeSave:       map[string]TriggerHandler{},
+		TypeAfterSave:        map[string]TriggerHandler{},
+		TypeBeforeDelete:     map[string]TriggerHandler{},
+		TypeAfterDelete:      map[string]TriggerHandler{},
+		TypeBeforeFind:       map[string]TriggerHandler{},
+		TypeAfterFind:        map[string]TriggerHandler{},
+		TypeBeforeFileUpload: map[string]TriggerHandler{},
+		TypeAfterFileUpload:  map[string]TriggerHandler{},
 	}
 	functions = map[string]FunctionHandler{}
 	validators = map[string]ValidatorHandler{}
@@ -152,14 +152,14 @@ func Unregister(category, name, triggerType string) {
 // UnregisterAll 删除所有注册的云代码
 func UnregisterAll() {
 	triggers = map[string]map[string]TriggerHandler{
-		TypeBeforeSave:   map[string]TriggerHandler{},
-		TypeAfterSave:    map[string]TriggerHandler{},
-		TypeBeforeDelete: map[string]TriggerHandler{},
-		TypeAfterDelete:  map[string]TriggerHandler{},
-		TypeBeforeFind:   map[string]TriggerHandler{},
-		TypeAfterFind:    map[string]TriggerHandler{},
-		TypeBeforeFileUpload:    map[string]TriggerHandler{},
-		TypeAfterFileUpload:    map[string]TriggerHandler{},
+		TypeBeforeSave:       map[string]TriggerHandler{},
+		TypeAfterSave:        map[string]TriggerHandler{},
+		TypeBeforeDelete:     map[string]TriggerHandler{},
+		TypeAfterDelete:      map[string]TriggerHandler{},
+		TypeBeforeFind:       map[string]TriggerHandler{},
+		TypeAfterFind:        map[string]TriggerHandler{},
+		TypeBeforeFileUpload: map[string]TriggerHandler{},
+		TypeAfterFileUpload:  map[string]TriggerHandler{},
 	}
 	functions = map[string]FunctionHandler{}
 	validators = map[string]ValidatorHandler{}
@@ -261,9 +261,15 @@ func (t *TriggerResponse) Success(response interface{}) {
 	t.Response = types.M{}
 	if t.Request.TriggerName == TypeBeforeSave {
 		t.Response["object"] = t.Request.Object
+		return
 	}
 	if t.Request.TriggerName == TypeBeforeFileUpload {
 		t.Response["data"] = t.Request.Data
+		return
+	}
+	if t.Request.TriggerName == TypeAfterFileUpload {
+		t.Response["data"] = response
+		return
 	}
 }
 
