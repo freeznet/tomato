@@ -164,7 +164,7 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 	}
 
 	// 组装 acl 查询条件，查找可被当前用户访问的对象
-	if isMaster == false {
+	if isMaster == false || options["distinct"] != nil || options["pipeline"] != nil{
 		query = addReadACL(query, aclGroup)
 	}
 
@@ -191,6 +191,7 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 		if !ok {
 			return types.S{}, nil
 		}
+		fmt.Println("query", query)
 		objects, err := Adapter.Distinct(className, distinct, parseFormatSchema, query)
 		if err != nil {
 			return nil, err

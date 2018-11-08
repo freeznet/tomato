@@ -780,6 +780,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 	}
 
 	values := types.S{}
+	//fmt.Println(schema, query)
 	where, err := buildWhereClause(schema, query, 1)
 	if err != nil {
 		return nil, err
@@ -841,6 +842,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 	}
 
 	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s`, columns, className, wherePattern, sortPattern, limitPattern, skipPattern)
+	//fmt.Println(qs, values)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
@@ -981,7 +983,6 @@ func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query ty
 	if isArrayField {
 		qs = fmt.Sprintf(`SELECT DISTINCT jsonb_array_elements(%s) AS %s FROM "%s" %s`, field, column, className, wherePattern)
 	}
-	//fmt.Println(qs)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {

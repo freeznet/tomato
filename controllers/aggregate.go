@@ -16,9 +16,9 @@ type AggregateController struct {
 
 func (s *AggregateController) Prepare() {
 	s.ClassesController.Prepare()
-	if s.Ctx.ResponseWriter.Started == false {
-		s.EnforceMasterKeyAccess()
-	}
+	//if s.Ctx.ResponseWriter.Started == false {
+	//	s.EnforceMasterKeyAccess()
+	//}
 }
 
 // HandleFind 处理查找对象请求
