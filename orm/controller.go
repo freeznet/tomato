@@ -191,7 +191,6 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 		if !ok {
 			return types.S{}, nil
 		}
-		fmt.Println("query", query)
 		objects, err := Adapter.Distinct(className, distinct, parseFormatSchema, query)
 		if err != nil {
 			return nil, err

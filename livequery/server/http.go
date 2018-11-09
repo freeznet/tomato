@@ -37,14 +37,20 @@ func userForSessionToken(sessionToken string) (t.M, error) {
 	if err != nil {
 		return nil, err
 	}
-	var session t.M
-	err = json.Unmarshal(body, &session)
+	var response t.M
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		return nil, errors.New("No session found for session token")
 	}
 
-	if user, ok := session["user"].(map[string]interface{}); ok && user != nil {
-		return user, nil
+	if results, ok := response["results"].([]interface{}); ok {
+		for _, result := range results {
+			if session, ok := result.(map[string]interface{}); ok {
+				if user, ok := session["user"].(map[string]interface{}); ok && user != nil {
+					return user, nil
+				}
+			}
+		}
 	}
 
 	return t.M{}, nil
@@ -59,7 +65,7 @@ func GetUserRoles(userID string) []string {
 	}
 
 	req.Header.Add("X-Parse-Application-Id", TomatoInfo["appId"])
-	req.Header.Add("X-Parse-Client-Key", TomatoInfo["clientKey"])
+	req.Header.Add("X-Parse-Master-Key", TomatoInfo["masterKey"])
 
 	client := http.DefaultClient
 	resp, err := client.Do(req)
@@ -83,6 +89,60 @@ func GetUserRoles(userID string) []string {
 			if role, ok := result.(map[string]interface{}); ok {
 				if name, ok := role["name"].(string); ok && name != "" {
 					r = append(r, "role:"+name)
+					roleId, ok := role["objectId"].(string)
+					if ok && roleId != "" {
+						relatedRoles := GetRelatedRoles(roleId)
+						if len(relatedRoles) > 0 {
+							r = append(r, relatedRoles...)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return r
+}
+
+func GetRelatedRoles(roleID string) []string{
+	p := url.QueryEscape(`{"roles":{"__type":"Pointer","className":"Role","objectId":"` + roleID + `"}}`)
+	req, err := http.NewRequest("GET", TomatoInfo["serverURL"]+"/roles?where="+p, nil)
+	if err != nil {
+		return []string{}
+	}
+
+	req.Header.Add("X-Parse-Application-Id", TomatoInfo["appId"])
+	req.Header.Add("X-Parse-Master-Key", TomatoInfo["masterKey"])
+
+	client := http.DefaultClient
+	resp, err := client.Do(req)
+	if err != nil {
+		return []string{}
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return []string{}
+	}
+	var response t.M
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return []string{}
+	}
+	r := []string{}
+	if results, ok := response["results"].([]interface{}); ok {
+		for _, result := range results {
+			if role, ok := result.(map[string]interface{}); ok {
+				if name, ok := role["name"].(string); ok && name != "" {
+					r = append(r, "role:"+name)
+					roleId, ok := role["objectId"].(string)
+					if ok && roleId != "" {
+						relatedRoles := GetRelatedRoles(roleId)
+						if len(relatedRoles) > 0 {
+							r = append(r, relatedRoles...)
+						}
+					}
 				}
 			}
 		}

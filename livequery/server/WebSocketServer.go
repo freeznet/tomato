@@ -1,11 +1,10 @@
 package server
 
 import (
-	"net/http"
-	"strings"
-
 	"github.com/astaxie/beego"
 	"golang.org/x/net/websocket"
+	"net/http"
+	"strings"
 )
 
 // WebSocketHandler ...
