@@ -1,10 +1,10 @@
 package files
 
 import (
-	"github.com/freeznet/tomato/config"
-	"github.com/freeznet/tomato/utils"
 	"github.com/freeznet/tomato/cloud"
+	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 var adapter filesAdapter
@@ -37,7 +37,7 @@ func GetFileData(filename string) ([]byte, error) {
 }
 
 // CreateFile 创建文件，返回文件地址与文件名
-func CreateFile(filename string, data []byte, contentType string, user types.M) map[string]string {
+func CreateFile(filename string, data []byte, contentType string, user types.M) types.M {
 	extname := utils.ExtName(filename)
 	if extname == "" && contentType != "" && utils.LookupExtension(contentType) != "" {
 		filename = filename + "." + utils.LookupExtension(contentType)
@@ -59,7 +59,7 @@ func CreateFile(filename string, data []byte, contentType string, user types.M) 
 
 	if response != nil && response["data"] != nil {
 		newdata, ok := response["data"].([]byte)
-		if ok{
+		if ok {
 			err = adapter.createFile(filename, newdata, contentType)
 		} else {
 			err = adapter.createFile(filename, data, contentType)
@@ -76,14 +76,17 @@ func CreateFile(filename string, data []byte, contentType string, user types.M) 
 	//if hasAfterFileUploadHook == false {
 	//	return nil
 	//}
-	_, err = maybeRunAfterTrigger(cloud.TypeAfterFileUpload, extname, orifilename, filename, location)
+	result, err := maybeRunAfterTrigger(cloud.TypeAfterFileUpload, extname, orifilename, filename, location)
 	if err != nil {
 		return nil
 	}
-	return map[string]string{
+
+	return types.M{
 		"url":  location,
 		"name": filename,
+		"data": result["data"],
 	}
+
 }
 
 // DeleteFile 删除文件
