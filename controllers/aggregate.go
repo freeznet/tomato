@@ -31,6 +31,7 @@ func (c *AggregateController) HandleFind() {
 	allowKeys := map[string]bool{
 		"where":                   true,
 		"distinct":                   true,
+		"pipeline":                   true,
 		"project":                   true,
 		"match":                   true,
 		"limit":                   true,
@@ -60,23 +61,28 @@ func (c *AggregateController) HandleFind() {
 	}
 
 	pipeline := types.M{}
-	for k := range allowKeys {
-		if k == "group" && c.Query[k] != ""{
-			groupbody := types.M{}
-			err := json.Unmarshal([]byte(c.Query["group"]), &groupbody)
-			if err != nil {
-				c.HandleError(errs.E(errs.InvalidJSON, "group should be valid json"), 0)
-				return
-			}
-			pipeline[k] = groupbody
-			continue
-		}
-		if c.Query[k] != "" {
-			pipeline[k] = c.Query[k]
-		} else if c.JSONBody != nil && c.JSONBody[k] != nil {
-			pipeline[k] = utils.M(c.JSONBody[k])
-		}
 
+	if c.JSONBody != nil && c.JSONBody["pipeline"] != nil {
+		pipeline = utils.M(c.JSONBody["pipeline"])
+	} else {
+		for k := range allowKeys {
+			if k == "group" && c.Query[k] != "" {
+				groupbody := types.M{}
+				err := json.Unmarshal([]byte(c.Query["group"]), &groupbody)
+				if err != nil {
+					c.HandleError(errs.E(errs.InvalidJSON, "group should be valid json"), 0)
+					return
+				}
+				pipeline[k] = groupbody
+				continue
+			}
+			if c.Query[k] != "" {
+				pipeline[k] = c.Query[k]
+			} else if c.JSONBody != nil && c.JSONBody[k] != nil {
+				pipeline[k] = utils.M(c.JSONBody[k])
+			}
+
+		}
 	}
 
 	// 获取查询参数，并组装
