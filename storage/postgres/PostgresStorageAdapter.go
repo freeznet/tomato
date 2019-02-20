@@ -588,7 +588,7 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 				return err
 			}
 			valuesArray = append(valuesArray, b)
-		case "String", "Number", "Boolean":
+		case "String", "Number", "Boolean", "Bytes":
 			valuesArray = append(valuesArray, object[fieldName])
 		case "File":
 			if v := utils.M(object[fieldName]); v != nil && utils.S(v["name"]) != "" {
@@ -1999,6 +1999,8 @@ func parseTypeToPostgresType(t types.M) (string, error) {
 		return "double precision", nil
 	case "GeoPoint":
 		return "point", nil
+	case "Bytes":
+		return "jsonb", nil
 	case "Array":
 		if contents := utils.M(t["contents"]); contents != nil {
 			if utils.S(contents["type"]) == "String" {

@@ -935,6 +935,7 @@ var validNonRelationOrPointerTypes = map[string]bool{
 	"Array":    true,
 	"GeoPoint": true,
 	"File":     true,
+	"Bytes":     true,
 }
 
 // fieldTypeIsInvalid 检测字段类型是否合法
