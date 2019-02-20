@@ -2435,6 +2435,9 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 
 			if geoWithin := utils.M(value["$geoWithin"]); geoWithin != nil {
 				if polygon := utils.A(geoWithin["$polygon"]); polygon != nil {
+					if len(polygon) < 3 {
+						return nil, errs.E(errs.InvalidJSON, "bad $geoWithin value; $polygon should contain at least 3 GeoPoints")
+					}
 					points := []string{}
 					for _, p := range polygon {
 						if point := utils.M(p); point != nil && utils.S(point["__type"]) == "GeoPoint" {

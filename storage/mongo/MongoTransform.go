@@ -572,8 +572,8 @@ func (t *Transform) transformConstraint(constraint interface{}, inArray bool) (i
 				return nil, errs.E(errs.InvalidJSON, "bad $geoWithin value")
 			}
 			polygon := utils.A(geoWithin["$polygon"])
-			if polygon == nil {
-				return nil, errs.E(errs.InvalidJSON, "bad $geoWithin value")
+			if polygon == nil || len(polygon) < 3{
+				return nil, errs.E(errs.InvalidJSON, "bad $geoWithin value; $polygon should contain at least 3 GeoPoints")
 			}
 			points := types.S{}
 			for _, point := range polygon {
