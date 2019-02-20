@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"regexp"
 
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/types"
 )
 
 // HasResults Find() 返回数据中是否有结果
@@ -104,6 +104,15 @@ func CompareArray(i1, i2 interface{}) bool {
 			return true
 		}
 		return false
+	}
+	return false
+}
+
+func StringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
 	}
 	return false
 }

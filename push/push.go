@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/rest"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/rest"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 var adapter pushAdapter

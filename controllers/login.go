@@ -3,13 +3,13 @@ package controllers
 import (
 	"time"
 
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/files"
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/rest"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/files"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/rest"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // LoginController 处理 /login 接口的请求

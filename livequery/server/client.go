@@ -5,7 +5,7 @@ import (
 
 	"reflect"
 
-	"github.com/lfq7413/tomato/livequery/t"
+	"github.com/freeznet/tomato/livequery/t"
 )
 
 var dafaultFields = []string{"className", "objectId", "updatedAt", "createdAt", "ACL"}

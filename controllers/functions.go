@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"github.com/lfq7413/tomato/cloud"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/cloud"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/types"
 )
 
 // FunctionsController 处理 /functions 接口的请求

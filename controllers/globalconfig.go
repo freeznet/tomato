@@ -1,11 +1,12 @@
 package controllers
 
 import (
+	"github.com/freeznet/tomato/errs"
 	"strings"
 
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // GlobalConfigController 处理 /config 接口的请求
@@ -44,6 +45,11 @@ func (g *GlobalConfigController) HandleGet() {
 // @router / [put]
 func (g *GlobalConfigController) HandlePut() {
 	if g.EnforceMasterKeyAccess() == false {
+		return
+	}
+
+	if g.Auth.IsReadOnly == true {
+		g.HandleError(errs.E(errs.OperationForbidden, "read-only masterKey isn't allowed to update the config."), 0)
 		return
 	}
 

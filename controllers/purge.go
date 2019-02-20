@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"github.com/lfq7413/tomato/cache"
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/cache"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/types"
 )
 
 // PurgeController 处理 /purge 接口的请求

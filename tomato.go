@@ -3,15 +3,15 @@ package tomato
 import (
 	"strings"
 
-	"github.com/lfq7413/tomato/config"
-	_ "github.com/lfq7413/tomato/routers"
+	"github.com/freeznet/tomato/config"
+	_ "github.com/freeznet/tomato/routers"
 
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/astaxie/beego/plugins/cors"
-	"github.com/lfq7413/tomato/controllers"
-	"github.com/lfq7413/tomato/livequery"
-	"github.com/lfq7413/tomato/orm"
+	"github.com/freeznet/tomato/controllers"
+	"github.com/freeznet/tomato/livequery"
+	"github.com/freeznet/tomato/orm"
 )
 
 // Run ...

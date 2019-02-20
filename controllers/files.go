@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/files"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/files"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // FilesController 处理 /files 接口的请求

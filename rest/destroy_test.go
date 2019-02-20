@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/types"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/types"
 )
 
 func Test_Destroy(t *testing.T) {

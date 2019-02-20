@@ -7,10 +7,10 @@ import (
 
 	"strings"
 
-	"github.com/lfq7413/tomato/livequery/pubsub"
-	"github.com/lfq7413/tomato/livequery/server"
-	"github.com/lfq7413/tomato/livequery/t"
-	"github.com/lfq7413/tomato/livequery/utils"
+	"github.com/freeznet/tomato/livequery/pubsub"
+	"github.com/freeznet/tomato/livequery/server"
+	"github.com/freeznet/tomato/livequery/t"
+	"github.com/freeznet/tomato/livequery/utils"
 )
 
 /*

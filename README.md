@@ -5,13 +5,13 @@ Parse-compatible API server module for Golang/Beego
 ## 开始
 ###### 安装
 ```bash
-    go get github.com/lfq7413/tomato
+    go get github.com/freeznet/tomato
 ```
 ###### 创建文件 hello.go
 ```go
 package main
 
-import "github.com/lfq7413/tomato"
+import "github.com/freeznet/tomato"
 
 func main() {
     tomato.Run()

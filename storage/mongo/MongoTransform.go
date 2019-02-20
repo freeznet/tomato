@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // Transform ...

@@ -8,17 +8,17 @@ import (
 
 	"strconv"
 
-	am "github.com/lfq7413/tomato/auth"
-	"github.com/lfq7413/tomato/cache"
-	"github.com/lfq7413/tomato/client"
-	"github.com/lfq7413/tomato/cloud"
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/files"
-	"github.com/lfq7413/tomato/livequery"
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	am "github.com/freeznet/tomato/auth"
+	"github.com/freeznet/tomato/cache"
+	"github.com/freeznet/tomato/client"
+	"github.com/freeznet/tomato/cloud"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/files"
+	"github.com/freeznet/tomato/livequery"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // Write ...
@@ -50,6 +50,9 @@ func NewWrite(
 ) (*Write, error) {
 	if auth == nil {
 		auth = Nobody()
+	}
+	if auth.IsReadOnly {
+		return nil, errs.E(errs.OperationForbidden, "Cannot perform a write operation when using readOnlyMasterKey.")
 	}
 	if data == nil {
 		data = types.M{}

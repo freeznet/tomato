@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/orm"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/orm"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // SchemasController 处理 /schemas 接口的请求
@@ -55,6 +55,10 @@ func (s *SchemasController) HandleGet() {
 // HandleCreate 处理创建类请求，同时可匹配 / 的 POST 请求
 // @router /:className [post]
 func (s *SchemasController) HandleCreate() {
+	if s.Auth.IsReadOnly {
+		s.HandleError(errs.E(errs.OperationForbidden, "read-only masterKey isn't allowed to create a schema."), 0)
+		return
+	}
 	className := s.Ctx.Input.Param(":className")
 	var data = s.JSONBody
 	if data == nil {
@@ -94,6 +98,10 @@ func (s *SchemasController) HandleCreate() {
 // HandleUpdate 处理更新类请求
 // @router /:className [put]
 func (s *SchemasController) HandleUpdate() {
+	if s.Auth.IsReadOnly {
+		s.HandleError(errs.E(errs.OperationForbidden, "read-only masterKey isn't allowed to update a schema."), 0)
+		return
+	}
 	className := s.Ctx.Input.Param(":className")
 	var data = s.JSONBody
 	if data == nil {
@@ -129,6 +137,10 @@ func (s *SchemasController) HandleUpdate() {
 // HandleDelete 处理删除指定类请求
 // @router /:className [delete]
 func (s *SchemasController) HandleDelete() {
+	if s.Auth.IsReadOnly {
+		s.HandleError(errs.E(errs.OperationForbidden, "read-only masterKey isn't allowed to delete a schema."), 0)
+		return
+	}
 	className := s.Ctx.Input.Param(":className")
 	if orm.ClassNameIsValid(className) == false {
 		s.HandleError(errs.E(errs.InvalidClassName, orm.InvalidClassNameMessage(className)), 0)

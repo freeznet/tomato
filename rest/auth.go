@@ -3,15 +3,16 @@ package rest
 import (
 	"time"
 
-	"github.com/lfq7413/tomato/cache"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/cache"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // Auth 保存当前请求的用户权限信息
 type Auth struct {
 	IsMaster       bool
+	IsReadOnly	   bool
 	InstallationID string
 	User           types.M
 	UserRoles      []string
@@ -21,12 +22,17 @@ type Auth struct {
 
 // Master 生成 Master 级别用户
 func Master() *Auth {
-	return &Auth{IsMaster: true}
+	return &Auth{IsMaster: true, IsReadOnly: false}
+}
+
+// ReadOnly 生成 Master 级别的只读用户
+func ReadOnly() *Auth {
+	return &Auth{IsMaster: true, IsReadOnly: true}
 }
 
 // Nobody 生成空用户
 func Nobody() *Auth {
-	return &Auth{IsMaster: false}
+	return &Auth{IsMaster: false, IsReadOnly: false}
 }
 
 // GetAuthForSessionToken 返回 sessionToken 对应的用户权限信息
@@ -36,6 +42,7 @@ func GetAuthForSessionToken(sessionToken string, installationID string) (*Auth, 
 	if u := utils.M(cachedUser); u != nil {
 		return &Auth{
 			IsMaster:       false,
+			IsReadOnly:		false,
 			InstallationID: installationID,
 			User:           u,
 		}, nil
@@ -94,6 +101,7 @@ func GetAuthForSessionToken(sessionToken string, installationID string) (*Auth, 
 
 	return &Auth{
 		IsMaster:       false,
+		IsReadOnly:false,
 		InstallationID: installationID,
 		User:           user,
 	}, nil
@@ -126,6 +134,7 @@ func GetAuthForLegacySessionToken(sessionToken, installationID string) (*Auth, e
 	userObject["className"] = "_User"
 	return &Auth{
 		IsMaster:       false,
+		IsReadOnly:false,
 		InstallationID: installationID,
 		User:           userObject,
 	}, nil

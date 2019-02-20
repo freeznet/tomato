@@ -3,8 +3,8 @@ package pubsub
 import (
 	"encoding/json"
 
-	"github.com/lfq7413/tomato/livequery/server"
-	"github.com/lfq7413/tomato/livequery/t"
+	"github.com/freeznet/tomato/livequery/server"
+	"github.com/freeznet/tomato/livequery/t"
 )
 
 // CloudCodePublisher 云代码发布者，当前支持发布 afterSave 与 afterDelete 通知

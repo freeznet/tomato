@@ -1,11 +1,11 @@
 package rest
 
 import (
-	"github.com/lfq7413/tomato/cloud"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/livequery"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/cloud"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/livequery"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // Find 根据条件查找数据
@@ -149,10 +149,26 @@ func Update(auth *Auth, className, objectID string, object types.M, clientSDK ma
 
 // enforceRoleSecurity 对指定的类与操作进行安全校验
 func enforceRoleSecurity(method string, className string, auth *Auth) error {
+	classesWithMasterOnlyAccess := []string{"_JobStatus", "_PushStatus", "_Hooks", "_GlobalConfig", "_JobSchedule"}
+
 	// 非 Master 不得对 _Installation 进行删除与查找操作操作
 	if className == "_Installation" && auth.IsMaster == false {
 		if method == "delete" || method == "find" {
 			msg := "Clients aren't allowed to perform the " + method + " operation on the installation collection."
+			return errs.E(errs.OperationForbidden, msg)
+		}
+	}
+
+	//all volatileClasses are masterKey only
+	if utils.StringInSlice(className, classesWithMasterOnlyAccess) && !auth.IsMaster {
+		msg := "Clients aren't allowed to perform the " + method + " operation on the " + className + " collection."
+		return errs.E(errs.OperationForbidden, msg)
+	}
+
+	// readOnly masterKey is not allowed
+	if auth.IsReadOnly {
+		if method == "delete" || method == "create" || method == "update" {
+			msg := "read-only masterKey isn't allowed to perform the " + className + " operation."
 			return errs.E(errs.OperationForbidden, msg)
 		}
 	}

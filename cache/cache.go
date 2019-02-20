@@ -3,7 +3,7 @@ package cache
 import (
 	"strings"
 
-	"github.com/lfq7413/tomato/config"
+	"github.com/freeznet/tomato/config"
 )
 
 // Role ...

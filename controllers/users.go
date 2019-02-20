@@ -3,10 +3,10 @@ package controllers
 import (
 	"regexp"
 
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/rest"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/rest"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // UsersController 处理 /users 接口的请求

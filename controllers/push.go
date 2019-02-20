@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/push"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/push"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // PushController 处理 /push 接口的请求
@@ -16,6 +16,10 @@ type PushController struct {
 // @router / [post]
 func (p *PushController) HandlePost() {
 	if p.EnforceMasterKeyAccess() == false {
+		return
+	}
+	if p.Auth.IsReadOnly == true {
+		p.HandleError(errs.E(errs.OperationForbidden, "read-only masterKey isn't allowed to send push notifications."), 0)
 		return
 	}
 	if p.JSONBody == nil {

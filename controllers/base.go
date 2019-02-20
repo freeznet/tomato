@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"github.com/astaxie/beego"
-	"github.com/lfq7413/tomato/client"
-	"github.com/lfq7413/tomato/config"
-	"github.com/lfq7413/tomato/errs"
-	"github.com/lfq7413/tomato/rest"
-	"github.com/lfq7413/tomato/types"
-	"github.com/lfq7413/tomato/utils"
+	"github.com/freeznet/tomato/client"
+	"github.com/freeznet/tomato/config"
+	"github.com/freeznet/tomato/errs"
+	"github.com/freeznet/tomato/rest"
+	"github.com/freeznet/tomato/types"
+	"github.com/freeznet/tomato/utils"
 )
 
 // BaseController ...
@@ -167,9 +167,15 @@ func (b *BaseController) Prepare() {
 		return
 	}
 	if info.MasterKey == config.TConfig.MasterKey {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true}
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: false }
 		return
 	}
+
+	if config.TConfig.ReadOnlyMasterKey != "" && info.MasterKey == config.TConfig.ReadOnlyMasterKey {
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: true }
+		return
+	}
+
 	var allow = false
 	if (len(info.ClientKey) > 0 && info.ClientKey == config.TConfig.ClientKey) ||
 		(len(info.JavaScriptKey) > 0 && info.JavaScriptKey == config.TConfig.JavaScriptKey) ||
