@@ -329,6 +329,8 @@ func parseFieldTypeToMongoFieldType(t types.M) string {
 		return "geopoint"
 	case "File":
 		return "file"
+	case "Bytes":
+		return "bytes"
 	default:
 		return ""
 	}
