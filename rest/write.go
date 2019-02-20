@@ -869,8 +869,10 @@ func (w *Write) validateEmail() error {
 	}
 
 	// 更新 email ，需要发送验证邮件
-	w.storage["sendVerificationEmail"] = true
-	SetEmailVerifyToken(w.data)
+	if w.data["authData"] == nil {
+		w.storage["sendVerificationEmail"] = true
+		SetEmailVerifyToken(w.data)
+	}
 
 	return nil
 }
