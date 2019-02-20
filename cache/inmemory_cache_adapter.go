@@ -1,9 +1,9 @@
 package cache
 
 import (
+	"github.com/freeznet/tomato/utils"
 	"sync"
 	"time"
-	"github.com/freeznet/tomato/utils"
 )
 
 // TODO 增加定时清理过期缓存的操作

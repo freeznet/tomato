@@ -166,9 +166,15 @@ func (b *BaseController) Prepare() {
 		return
 	}
 	if info.MasterKey == config.TConfig.MasterKey {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true}
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: false }
 		return
 	}
+
+	if config.TConfig.ReadOnlyMasterKey != "" && info.MasterKey == config.TConfig.ReadOnlyMasterKey {
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: true }
+		return
+	}
+
 	var allow = false
 	if (len(info.ClientKey) > 0 && info.ClientKey == config.TConfig.ClientKey) ||
 		(len(info.JavaScriptKey) > 0 && info.JavaScriptKey == config.TConfig.JavaScriptKey) ||

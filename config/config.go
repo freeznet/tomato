@@ -20,6 +20,7 @@ type Config struct {
 	DatabaseURI                      string   // 数据库地址
 	AppID                            string   // 必填
 	MasterKey                        string   // 必填
+	ReadOnlyMasterKey				 string   // 只读MasterKey
 	ClientKey                        string   // 选填
 	JavaScriptKey                    string   // 选填
 	DotNetKey                        string   // 选填
@@ -115,6 +116,7 @@ func parseConfig() {
 	TConfig.DatabaseURI = beego.AppConfig.String("DatabaseURI")
 	TConfig.AppID = beego.AppConfig.String("AppID")
 	TConfig.MasterKey = beego.AppConfig.String("MasterKey")
+	TConfig.ReadOnlyMasterKey = beego.AppConfig.String("ReadOnlyMasterKey")
 	TConfig.ClientKey = beego.AppConfig.String("ClientKey")
 	TConfig.JavaScriptKey = beego.AppConfig.String("JavaScriptKey")
 	TConfig.DotNetKey = beego.AppConfig.String("DotNetKey")
@@ -237,6 +239,9 @@ func validateApplicationConfiguration() {
 	}
 	if TConfig.ClientKey == "" && TConfig.JavaScriptKey == "" && TConfig.DotNetKey == "" && TConfig.RestAPIKey == "" {
 		log.Fatalln("ClientKey or JavaScriptKey or DotNetKey or RestAPIKey is required")
+	}
+	if TConfig.MasterKey == TConfig.ReadOnlyMasterKey {
+		log.Fatalln("MasterKey and ReadOnlyMasterKey should be different")
 	}
 }
 

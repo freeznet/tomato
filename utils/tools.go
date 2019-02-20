@@ -107,3 +107,12 @@ func CompareArray(i1, i2 interface{}) bool {
 	}
 	return false
 }
+
+func StringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}

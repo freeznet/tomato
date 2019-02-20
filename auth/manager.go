@@ -4,7 +4,6 @@ import (
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
-	"fmt"
 )
 
 var providers map[string]Provider
@@ -62,7 +61,6 @@ func ValidateAuthData(provider string, authData types.M) error {
 		return errs.E(errs.UnsupportedService, "This authentication method is unsupported.")
 	}
 	defaultProvider := providers[provider]
-	fmt.Println(provider)
 	if defaultProvider == nil {
 		// 不支持该方式
 		return errs.E(errs.UnsupportedService, "This authentication method is unsupported.")

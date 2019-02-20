@@ -51,6 +51,9 @@ func NewWrite(
 	if auth == nil {
 		auth = Nobody()
 	}
+	if auth.IsReadOnly {
+		return nil, errs.E(errs.OperationForbidden, "Cannot perform a write operation when using readOnlyMasterKey.")
+	}
 	if data == nil {
 		data = types.M{}
 	}

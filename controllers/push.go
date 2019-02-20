@@ -18,6 +18,10 @@ func (p *PushController) HandlePost() {
 	if p.EnforceMasterKeyAccess() == false {
 		return
 	}
+	if p.Auth.IsReadOnly == true {
+		p.HandleError(errs.E(errs.OperationForbidden, "read-only masterKey isn't allowed to send push notifications."), 0)
+		return
+	}
 	if p.JSONBody == nil {
 		p.HandleError(errs.E(errs.InvalidJSON, "request body is empty"), 0)
 		return

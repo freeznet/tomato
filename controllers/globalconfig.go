@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"github.com/freeznet/tomato/errs"
 	"strings"
 
 	"github.com/freeznet/tomato/orm"
@@ -44,6 +45,11 @@ func (g *GlobalConfigController) HandleGet() {
 // @router / [put]
 func (g *GlobalConfigController) HandlePut() {
 	if g.EnforceMasterKeyAccess() == false {
+		return
+	}
+
+	if g.Auth.IsReadOnly == true {
+		g.HandleError(errs.E(errs.OperationForbidden, "read-only masterKey isn't allowed to update the config."), 0)
 		return
 	}
 
