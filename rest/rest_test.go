@@ -249,7 +249,7 @@ func Test_Delete(t *testing.T) {
 	auth = Master()
 	objectID = "02"
 	err = Delete(auth, className, objectID)
-	expect = errs.E(errs.ObjectNotFound, "Object not found.")
+	expect = errs.E(errs.ObjectNotFound, "Object not found for delete.")
 	if reflect.DeepEqual(expect, err) == false {
 		t.Error("expect:", expect, "result:", err)
 	}
@@ -386,7 +386,7 @@ func Test_Update(t *testing.T) {
 		"name": "jack",
 	}
 	result, err = Update(auth, className, objectID, object, nil)
-	expectErr = errs.E(errs.ObjectNotFound, "Object not found.")
+	expectErr = errs.E(errs.ObjectNotFound, "Object not found for update.")
 	if reflect.DeepEqual(expectErr, err) == false {
 		t.Error("expect:", expectErr, "result:", err)
 	}

@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"log"
 
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 // MongoDBTestURL ...
-const MongoDBTestURL = "192.168.99.100:27017/test"
+const MongoDBTestURL = "127.0.0.1:27017/test"
 
 // PostgreSQLTestURL ...
 const PostgreSQLTestURL = "postgres://postgres@127.0.0.1:5432/test?sslmode=disable"

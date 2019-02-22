@@ -334,6 +334,11 @@ func (t *Transform) transformQueryKeyValue(className, key string, value interfac
 		return "", nil, err
 	}
 	if cValue != cannotTransform() {
+		if mCValue, ok := cValue.(types.M); ok {
+			if newValue, ok := mCValue["$text"]; ok {
+				return "$text", newValue, nil
+			}
+		}
 		return key, cValue, nil
 	}
 
@@ -473,6 +478,38 @@ func (t *Transform) transformConstraint(constraint interface{}, inArray bool) (i
 			// answer[key] = options
 			answer[key] = object[key]
 
+		// full text search
+		case "$text":
+			search, ok := utils.M(object[key])["$search"].(types.M)
+			textAnswer := types.M{}
+			if !ok {
+				return nil, errs.E(errs.InvalidJSON, "bad $text: $search, should be object")
+			}
+			term, ok := search["$term"].(string)
+			if search["$term"] != nil && !ok {
+				return nil, errs.E(errs.InvalidJSON, "bad $text: $term, should be string")
+			} else if ok{
+				textAnswer["$search"] = term
+			}
+			language, ok := search["$language"].(string)
+			if search["$language"] != nil && !ok {
+				return nil, errs.E(errs.InvalidJSON, "bad $text: $language, should be string")
+			} else if ok {
+				textAnswer["$language"] = language
+			}
+			caseSensitive, ok := search["$caseSensitive"].(bool)
+			if search["$caseSensitive"] != nil && !ok {
+				return nil, errs.E(errs.InvalidJSON, "bad $text: $caseSensitive, should be boolean")
+			} else if ok {
+				textAnswer["$caseSensitive"] = caseSensitive
+			}
+			diacriticSensitive, ok := search["$diacriticSensitive"].(bool)
+			if search["$diacriticSensitive"] != nil && !ok {
+				return nil, errs.E(errs.InvalidJSON, "bad $text: $diacriticSensitive, should be boolean")
+			} else if ok{
+				textAnswer["$diacriticSensitive"] = diacriticSensitive
+			}
+			answer[key] = utils.CopyMapM(textAnswer)
 		// 转换 附近 操作符
 		case "$nearSphere":
 			point := utils.M(object[key])

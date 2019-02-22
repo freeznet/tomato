@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"

@@ -1968,7 +1968,7 @@ func TestPostgres_runDatabaseOperation(t *testing.T) {
 			"objectId":  types.M{"type": "String"},
 			"username":  types.M{"type": "String"},
 			"password":  types.M{"type": "String"},
-			"createdAt": types.M{"type": "String"},
+			"createdAt": types.M{"type": "Date"},
 			"_rperm":    types.M{"type": "Array"},
 			"_wperm":    types.M{"type": "Array"},
 		},

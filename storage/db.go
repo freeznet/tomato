@@ -6,7 +6,7 @@ import (
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/test"
 	_ "github.com/lib/pq" // postgres driver
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 // OpenMongoDB 打开 MongoDB

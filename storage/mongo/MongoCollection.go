@@ -7,7 +7,7 @@ import (
 
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 // MongoCollection mongo 表操作对象
@@ -23,6 +23,22 @@ func newMongoCollection(collection *mgo.Collection) *MongoCollection {
 
 // find 执行查找操作，自动添加索引
 func (m *MongoCollection) find(query interface{}, options types.M) ([]types.M, error) {
+	// Support for Full Text Search - $text
+	if options["keys"] != nil && options["keys"].(types.M)["$score"] != nil{
+		if _, ok := options["keys"].(types.M)["$score"] ; ok {
+			delete(options["keys"].(types.M), "$score")
+		}
+		options["keys"].(types.M)["score"] = types.M{"$meta": "textScore"}
+	}
+	if _, ok := options["sort"].([]string); ok{
+		for i, v := range options["sort"].([]string) {
+			if v == "$score" {
+				options["sort"].([]string)[i] = "$textScore:"+v[1:]
+			} else if v == "-$score" {
+				options["sort"].([]string)[i] = "$textScore:-"+v[2:]
+			}
+		}
+	}
 	result, err := m.rawFind(query, options)
 	if err != nil {
 		msg := err.Error()
@@ -94,10 +110,10 @@ func (m *MongoCollection) rawFind(query interface{}, options types.M) ([]types.M
 		q = q.Select(options["keys"])
 	}
 	if options["maxTimeMS"] != nil {
-		if limit, ok := options["maxTimeMS"].(float64); ok {
-			q = q.SetMaxTime(time.Duration(limit) * time.Millisecond)
-		} else if limit, ok := options["maxTimeMS"].(int); ok {
-			q = q.SetMaxTime(time.Duration(limit) * time.Millisecond)
+		if maxTimeMS, ok := options["maxTimeMS"].(float64); ok {
+			q = q.SetMaxTime(time.Duration(maxTimeMS) * time.Millisecond)
+		} else if maxTimeMS, ok := options["maxTimeMS"].(int); ok {
+			q = q.SetMaxTime(time.Duration(maxTimeMS) * time.Millisecond)
 		}
 	}
 	var result []types.M

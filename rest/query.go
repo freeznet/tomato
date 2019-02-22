@@ -138,16 +138,18 @@ func NewQuery(
 				for i, field := range fields {
 					fields[i] = strings.TrimSpace(field)
 				}
-				// sortMap := map[string]int{}
-				// for _, v := range fields {
-				// 	if strings.HasPrefix(v, "-") {
-				// 		sortMap[v[1:]] = -1
-				// 	} else {
-				// 		sortMap[v] = 1
-				// 	}
-				// }
-				// query.findOptions["sort"] = sortMap
-				query.findOptions["sort"] = fields
+				sortMap := make(map[string]interface{})
+				for _, v := range fields {
+					if v == "$score" {
+						sortMap["score"] = types.M{"$meta": "textScore"}
+					} else if strings.HasPrefix(v, "-") {
+						sortMap[v[1:]] = -1
+					} else {
+						sortMap[v] = 1
+					}
+				}
+				query.findOptions["sort"] = sortMap
+				//query.findOptions["sort"] = fields
 			}
 		case "include":
 			if s, ok := v.(string); ok { // v = "user.session,name.friend"

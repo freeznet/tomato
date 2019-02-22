@@ -491,7 +491,6 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 	}
 	schema = toPostgresSchema(schema)
 	object = handleDotFields(object)
-
 	err := validateKeys(object)
 	if err != nil {
 		return err
@@ -781,7 +780,6 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 	}
 
 	values := types.S{}
-	//fmt.Println(schema, query)
 	where, err := buildWhereClause(schema, query, 1)
 	if err != nil {
 		return nil, err
@@ -805,17 +803,18 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 
 	var sortPattern string
 	if _, ok := options["sort"]; ok {
-		if keys, ok := options["sort"].([]string); ok {
+		if keys, ok := options["sort"].(map[string]interface{}); ok {
 			postgresSort := []string{}
-			for _, key := range keys {
+			for key, val := range keys {
 				var postgresKey string
-				if strings.HasPrefix(key, "-") {
-					key = key[1:]
-					postgresKey = fmt.Sprintf(`"%s" DESC`, key)
-				} else {
-					postgresKey = fmt.Sprintf(`"%s" ASC`, key)
+				if flg, ok := val.(int); ok {
+					if flg == -1 {
+						postgresKey = fmt.Sprintf(`"%s" DESC`, key)
+					} else if flg == 1 {
+						postgresKey = fmt.Sprintf(`"%s" ASC`, key)
+					}
+					postgresSort = append(postgresSort, postgresKey)
 				}
-				postgresSort = append(postgresSort, postgresKey)
 			}
 			sorting := strings.Join(postgresSort, ",")
 			if len(postgresSort) > 0 {
@@ -830,10 +829,12 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 	columns := "*"
 	if _, ok := options["keys"]; ok {
 		if keys, ok := options["keys"].([]string); ok {
-			postgresKeys := []string{}
+			var postgresKeys []string
 			for _, key := range keys {
-				if key != "" {
+				if key != "" && key != "$score"{
 					postgresKeys = append(postgresKeys, fmt.Sprintf(`"%s"`, key))
+				} else if key == "$score" {
+					postgresKeys = append(postgresKeys, fmt.Sprintf(`ts_rank_cd(%s, 32) as score`, strings.Replace(where.pattern, "@@", ",", -1)))
 				}
 			}
 			if len(postgresKeys) > 0 {
@@ -843,7 +844,6 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 	}
 
 	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s`, columns, className, wherePattern, sortPattern, limitPattern, skipPattern)
-	//fmt.Println(qs, values)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
@@ -861,7 +861,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 		fields = types.M{}
 	}
 
-	results := []types.M{}
+	var results []types.M
 	var resultColumns []string
 	for rows.Next() {
 		if resultColumns == nil {
@@ -1072,7 +1072,6 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 	}
 	values = append(values, where.values...)
 
-
 	if where.pattern != "" {
 		wherePattern = `WHERE ` + where.pattern
 	}
@@ -1115,11 +1114,9 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		if _, ok := pipeline["group"]; !ok{
 			columns = append(columns, "*")
 		}
-		//fmt.Println(p, pipeline[p], stage)
 		if p == "sort" {
 			postgresSort := []string{}
 			if v, ok := pipeline[p].(string); ok {
-			//	fmt.Println("ok", ok)
 				for _, key := range strings.Split(v, ",") {
 					key = strings.Trim(key, "\"")
 					var postgresKey string
@@ -1278,8 +1275,6 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 
 	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s`, selectPattern, className, wherePattern,  groupPattern, sortPattern, limitPattern, skipPattern)
 
-	//fmt.Println(qs)
-	//fmt.Println(values)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
@@ -1750,6 +1745,11 @@ func (p *PostgresAdapter) PerformInitialization(options types.M) error {
 // HandleShutdown 关闭数据库
 func (p *PostgresAdapter) HandleShutdown() {
 	p.db.Close()
+}
+
+// CreateIndex 创建索引
+func (m *PostgresAdapter) CreateIndex(className string, indexRequest []string) error {
+	return nil
 }
 
 func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
@@ -2290,7 +2290,6 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 			patterns = append(patterns, fmt.Sprintf(`(%s)`, strings.Join(clauses, orOrAnd)))
 			values = append(values, clauseValues...)
 		}
-
 		if value := utils.M(fieldValue); value != nil {
 
 			if v, ok := value["$ne"]; ok {
@@ -2403,6 +2402,41 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					patterns = append(patterns, fmt.Sprintf(`"%s" IS NOT NULL`, fieldName))
 				} else {
 					patterns = append(patterns, fmt.Sprintf(`"%s" IS NULL`, fieldName))
+				}
+			}
+
+			// support full text search
+			if text := utils.M(value["$text"]); text != nil {
+				if search := utils.M(text["$search"]); search != nil {
+					language := "english"
+					term, ok := search["$term"].(string)
+					if search["$term"] != nil && !ok {
+						return nil, errs.E(errs.InvalidJSON, "bad $text: $term, should be string")
+					}
+					languageVal, ok := search["$language"].(string)
+					if search["$language"] != nil && !ok {
+						return nil, errs.E(errs.InvalidJSON, "bad $text: $language, should be string")
+					} else if languageVal != ""{
+						language = languageVal
+					}
+					caseSensitive, ok := search["$caseSensitive"].(bool)
+					if search["$caseSensitive"] != nil && !ok {
+						return nil, errs.E(errs.InvalidJSON, "bad $text: $caseSensitive, should be boolean")
+					} else if caseSensitive {
+						return nil, errs.E(errs.InvalidJSON, "bad $text: $caseSensitive not supported, please use $regex or create a separate lower case column.")
+					}
+					diacriticSensitive, ok := search["$diacriticSensitive"].(bool)
+					if search["$diacriticSensitive"] != nil && !ok {
+						return nil, errs.E(errs.InvalidJSON, "bad $text: $diacriticSensitive, should be boolean")
+					} else if ok && !diacriticSensitive{
+						return nil, errs.E(errs.InvalidJSON, "bad $text: $diacriticSensitive - false not supported, install Postgres Unaccent Extension")
+					}
+					patterns = append(patterns, fmt.Sprintf(`to_tsvector($%d, "%s") @@ to_tsquery($%d, $%d)`, index, fieldName, index+1, index+2))
+					values = append(values, language, language, term)
+					index = index + 3
+
+				} else {
+					return nil, errs.E(errs.InvalidJSON, "bad $text: $search, should be object")
 				}
 			}
 

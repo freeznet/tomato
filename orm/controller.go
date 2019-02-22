@@ -109,29 +109,25 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 		classExists = false
 		parseFormatSchema["fields"] = types.M{}
 	}
-	if keys, ok := options["sort"].([]string); ok {
-		for i, key := range keys {
-			// sort 中的 key ，如果是要按倒序排列，则会加前缀 "-" ，所以要对其进行处理
-			var prefix string
-			if strings.HasPrefix(key, "-") {
-				prefix = "-"
-				key = key[1:]
-			}
-
+	if keys, ok := options["sort"].(map[string]interface{}); ok {
+		for key, val := range keys {
+			newKey := key
 			if key == "_created_at" {
-				key = "createdAt"
+				newKey = "createdAt"
 			} else if key == "_updated_at" {
-				key = "updatedAt"
+				newKey = "updatedAt"
 			}
-			if match, _ := regexp.MatchString(`^authData\.([a-zA-Z0-9_]+)\.id$`, key); match {
-				return nil, errs.E(errs.InvalidKeyName, "Cannot sort by "+key)
+			if newKey != key {
+				keys[newKey] = val
+				delete(keys, key)
+			}
+			if match, _ := regexp.MatchString(`^authData\.([a-zA-Z0-9_]+)\.id$`, newKey); match {
+				return nil, errs.E(errs.InvalidKeyName, "Cannot sort by "+newKey)
 			}
 
-			if fieldNameIsValid(key) == false {
-				return nil, errs.E(errs.InvalidKeyName, "Invalid field name: "+key)
+			if fieldNameIsValid(newKey) == false {
+				return nil, errs.E(errs.InvalidKeyName, "Invalid field name: "+newKey)
 			}
-
-			keys[i] = prefix + key
 		}
 		options["sort"] = keys
 	}
@@ -788,6 +784,11 @@ func (d *DBController) canAddField(schema *Schema, className string, object type
 	}
 
 	return nil
+}
+
+// CreateIndex 创建索引
+func (d *DBController) CreateIndex(className string, indexRequest []string) error {
+	return Adapter.CreateIndex(className, indexRequest)
 }
 
 // reduceRelationKeys 处理查询条件中的 $relatedTo

@@ -2,7 +2,7 @@ package utils
 
 import (
 	"github.com/astaxie/beego/utils"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/globalsign/mgo/bson"
 )
 
 // CreateObjectID ...

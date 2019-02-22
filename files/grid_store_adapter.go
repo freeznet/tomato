@@ -6,7 +6,7 @@ import (
 
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/storage"
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 type gridStoreAdapter struct {

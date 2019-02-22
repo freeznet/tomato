@@ -8,7 +8,7 @@ import (
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
 
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 func Test_getAllSchemas(t *testing.T) {

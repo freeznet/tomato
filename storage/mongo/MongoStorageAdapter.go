@@ -8,7 +8,7 @@ import (
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
 
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 const mongoSchemaCollectionName = "_SCHEMA"
@@ -307,25 +307,22 @@ func (m *MongoAdapter) Find(className string, schema, query, options types.M) ([
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := options["sort"]; ok {
-		if keys, ok := options["sort"].([]string); ok {
-			mongoSort := []string{}
-			for _, key := range keys {
-				var mongoKey string
-				var prefix string
-
-				if strings.HasPrefix(key, "-") {
-					prefix = "-"
-					key = key[1:]
+	if keys, ok :=  options["sort"].(map[string]interface{}); ok {
+		var mongoSort []string
+		for key, val := range keys {
+			var mongoKey string
+			if flg, ok := val.(int); ok {
+				if flg == -1 {
+					mongoKey = "-" + m.transform.transformKey(className, key, schema)
+				} else if flg == 1 {
+					mongoKey = m.transform.transformKey(className, key, schema)
 				}
-
-				mongoKey = prefix + m.transform.transformKey(className, key, schema)
 				mongoSort = append(mongoSort, mongoKey)
 			}
-			options["sort"] = mongoSort
-		} else {
-			delete(options, "sort")
 		}
+		options["sort"] = mongoSort
+	} else {
+		delete(options, "sort")
 	}
 	if _, ok := options["keys"]; ok {
 		if keys, ok := options["keys"].([]string); ok {
@@ -412,6 +409,18 @@ func (m *MongoAdapter) EnsureUniqueness(className string, schema types.M, fieldN
 // PerformInitialization 性能优化初始化
 func (m *MongoAdapter) PerformInitialization(options types.M) error {
 	return nil
+}
+
+// CreateIndex 创建索引
+func (m *MongoAdapter) CreateIndex(className string, indexRequest []string) error {
+	coll := m.adaptiveCollection(className)
+	index := mgo.Index{
+		Key:        indexRequest,
+		Background: true,
+		Sparse:     true,
+	}
+	err := coll.collection.EnsureIndex(index)
+	return err
 }
 
 // HandleShutdown 关闭数据库

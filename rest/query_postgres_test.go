@@ -2989,6 +2989,165 @@ func TestPostgres_includePath(t *testing.T) {
 	orm.TomatoDBController.DeleteEverything()
 }
 
+func TestPostgres_fullTextSearch(t *testing.T) {
+	subjects := []string{
+		"coffee",
+		"Coffee Shopping",
+		"Baking a cake",
+		"baking",
+		"Café Con Leche",
+		"Сырники",
+		"coffee and cream",
+		"Cafe con Leche",
+	}
+	var auth *Auth
+	var className string
+	var object types.M
+	var err error
+	/********************************************************/
+	initPostgresEnv()
+	auth = Master()
+	className = "TestObject"
+	for _, v := range subjects {
+		object = types.M{
+			"subject": v,
+		}
+		config.TConfig.ServerURL = "http://127.0.0.1/v1"
+		result, err := Create(auth, className, object, nil)
+		if err != nil || result == nil {
+			t.Error("expect:", nil, "result:", result)
+		}
+	}
+
+	err = orm.TomatoDBController.CreateIndex(className, []string{"$text:subject"})
+	if err != nil {
+		t.Error("expect:", nil, "result:", err)
+	}
+	// Parse.Query Full Text Search testing
+	where := types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": types.M{
+					"$term": "coffee",
+				},
+			},
+		},
+	}
+	result, err := orm.TomatoDBController.Find(className, where, nil)
+	if err != nil || len(result) != 3 {
+		t.Error("fullTextSearch: $search", "expect", 3, "result", len(result), result, err)
+	}
+
+	where = types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": types.M{
+					"$term": "coffee",
+				},
+			},
+		},
+	}
+	order := types.M{"$score": -1}
+	keys := []string{"$score"}
+	result, err = orm.TomatoDBController.Find(className, where, types.M{"sort": order, "keys": keys})
+	if err != nil || len(result) != 3 || result[0].(types.M)["score"] == nil || result[1].(types.M)["score"] == nil || result[2].(types.M)["score"] == nil  {
+		t.Error("fullTextSearch: $search, sort", "expect", 3, "result", len(result), result, err)
+	}
+
+	where = types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": types.M{
+					"$term": "leche",
+					"$language": "spanish",
+				},
+			},
+		},
+	}
+	result, err = orm.TomatoDBController.Find(className, where, types.M{})
+	if err != nil || len(result) != 2 {
+		t.Error("fullTextSearch: $language", "expect", 2, "result", len(result), result)
+	}
+
+	where = types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": types.M{
+					"$term": "CAFÉ",
+					"$diacriticSensitive": true,
+				},
+			},
+		},
+	}
+	result, err = orm.TomatoDBController.Find(className, where, types.M{})
+	if err != nil || len(result) != 1 {
+		t.Error("fullTextSearch: $diacriticSensitive", "expect", 1, "result", len(result), result)
+	}
+
+	where = types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": true,
+			},
+		},
+	}
+	result, err = orm.TomatoDBController.Find(className, where, types.M{})
+	expectErr := errs.E(errs.InvalidJSON, "bad $text: $search, should be object")
+	if reflect.DeepEqual(err, expectErr) == false {
+		t.Error("fullTextSearch: $search, invalid input", "expect", expectErr, "result", err)
+	}
+
+	where = types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": types.M{
+					"$term": "leche",
+					"$language": true,
+				},
+			},
+		},
+	}
+	result, err = orm.TomatoDBController.Find(className, where, types.M{})
+	expectErr = errs.E(errs.InvalidJSON, "bad $text: $language, should be string")
+	if reflect.DeepEqual(err, expectErr) == false {
+		t.Error("fullTextSearch: $language, invalid input", "expect", expectErr, "result", err)
+	}
+
+	where = types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": types.M{
+					"$term": "Coffee",
+					"$caseSensitive": "string",
+				},
+			},
+		},
+	}
+	result, err = orm.TomatoDBController.Find(className, where, types.M{})
+	expectErr = errs.E(errs.InvalidJSON, "bad $text: $caseSensitive, should be boolean")
+	if reflect.DeepEqual(err, expectErr) == false {
+		t.Error("fullTextSearch: $caseSensitive, invalid input", "expect", expectErr, "result", err)
+	}
+
+	where = types.M{
+		"subject": types.M{
+			"$text": types.M{
+				"$search": types.M{
+					"$term": "CAFÉ",
+					"$diacriticSensitive": "string",
+				},
+			},
+		},
+	}
+	result, err = orm.TomatoDBController.Find(className, where, types.M{})
+	expectErr = errs.E(errs.InvalidJSON, "bad $text: $diacriticSensitive, should be boolean")
+	if reflect.DeepEqual(err, expectErr) == false {
+		t.Error("fullTextSearch: $diacriticSensitive, invalid input", "expect", expectErr, "result", err)
+	}
+
+	orm.TomatoDBController.DeleteEverything()
+}
+
 func initPostgresEnv() {
 	orm.InitOrm(getPostgresAdapter())
 }

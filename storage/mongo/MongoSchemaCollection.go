@@ -6,7 +6,7 @@ import (
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 // MongoSchemaCollection _SCHEMA 表操作对象

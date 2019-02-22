@@ -9,7 +9,7 @@ import (
 	"github.com/freeznet/tomato/test"
 	"github.com/freeznet/tomato/types"
 
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 func Test_find(t *testing.T) {
