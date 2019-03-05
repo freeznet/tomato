@@ -3,10 +3,10 @@ package analytics
 import (
 	"time"
 
-	"github.com/influxdata/influxdb1-client/v2"
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
+	"github.com/influxdata/influxdb1-client/v2"
 )
 
 type influxDBAdapter struct {
