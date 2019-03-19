@@ -2,14 +2,14 @@ package files
 
 import (
 	"errors"
-	"net/url"
-	"github.com/freeznet/tomato/config"
 	"github.com/colinmarc/hdfs"
+	"github.com/freeznet/tomato/config"
+	"net/url"
 	"strings"
 )
 
 type hdfsAdapter struct {
-	client *hdfs.Client
+	client   *hdfs.Client
 	rootpath string
 }
 
@@ -105,4 +105,3 @@ func (d *hdfsFileStream) Size() (bytes int64) {
 func (d *hdfsFileStream) Close() (err error) {
 	return d.file.Close()
 }
-

@@ -675,14 +675,10 @@ func (w *Write) runBeforeTrigger() error {
 
 	var originalObject types.M
 	// 不添加原始对象
-	updatedObject := inflate(extraData, nil)
+	updatedObject := w.buildUpdatedObject(extraData)
 	if w.query != nil && w.query["objectId"] != nil {
 		// update 时初始化原始对象
 		originalObject = inflate(extraData, w.originalData)
-	}
-	// 把需要更新的数据添加进来
-	for k, v := range w.sanitizedData() {
-		updatedObject[k] = v
 	}
 
 	response, err := maybeRunTrigger(cloud.TypeBeforeSave, w.auth, updatedObject, originalObject)
@@ -1260,11 +1256,7 @@ func (w *Write) runAfterTrigger() error {
 		originalObject = inflate(extraData, w.originalData)
 	}
 
-	updatedObject := inflate(extraData, w.originalData)
-	// 把需要更新的数据添加进来
-	for k, v := range w.sanitizedData() {
-		updatedObject[k] = v
-	}
+	updatedObject := w.buildUpdatedObject(extraData)
 
 	if hasLiveQuery {
 		// 尝试通知 LiveQueryServer
@@ -1315,6 +1307,30 @@ func (w *Write) sanitizedData() types.M {
 		}
 	}
 	return data
+}
+
+func (w *Write) buildUpdatedObject(extraData types.M) types.M {
+	updatedObject := inflate(extraData, w.originalData)
+	data := utils.CopyMapM(w.data)
+	for key, v := range data {
+		if strings.Index(key, ".") > 0 {
+			keyComponents := strings.Split(key, ".")
+			subObjectKey := keyComponents[0]
+			var parentVal = types.M{}
+			parentVal, ok := updatedObject[subObjectKey].(types.M)
+			if !ok {
+				parentVal = types.M{}
+			}
+			parentVal[keyComponents[1]] = v
+			updatedObject[subObjectKey] = parentVal
+			delete(data, key)
+		}
+	}
+	// 把需要更新的数据添加进来
+	for k, v := range w.sanitizedData() {
+		updatedObject[k] = v
+	}
+	return updatedObject
 }
 
 func (w *Write) cleanUserAuthData() {
