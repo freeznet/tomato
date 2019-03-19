@@ -2246,7 +2246,13 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 			if err != nil {
 				return nil, err
 			}
-			patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
+			if fieldValue == nil {
+				patterns = append(patterns, fmt.Sprintf(`%s IS NULL`, name))
+			} else {
+				patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
+			}
+		} else if fieldValue == nil {
+			patterns = append(patterns, fmt.Sprintf(`"%s" IS NULL`, fieldName))
 		} else if _, ok := fieldValue.(string); ok {
 			patterns = append(patterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
 			values = append(values, fieldValue)

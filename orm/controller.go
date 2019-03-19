@@ -1053,19 +1053,18 @@ func (d *DBController) reduceInRelation(className string, query types.M, schema 
 
 	for key, v := range query {
 		op := utils.M(v)
+		relatedIds := []types.S{}
+		isNegation := []bool{}
+		if schema == nil {
+			continue
+		}
+		// 只处理 relation 类型
+		t := schema.getExpectedType(className, key)
+		if t == nil || utils.S(t["type"]) != "Relation" {
+			continue
+		}
 		if op != nil && (op["$in"] != nil || op["$ne"] != nil || op["$nin"] != nil || op["$eq"] != nil || utils.S(op["__type"]) == "Pointer") {
-			if schema == nil {
-				continue
-			}
-			// 只处理 relation 类型
-			t := schema.getExpectedType(className, key)
-			if t == nil || utils.S(t["type"]) != "Relation" {
-				continue
-			}
-
 			// 取出所有限制条件
-			relatedIds := []types.S{}
-			isNegation := []bool{}
 			for constraintKey, value := range op {
 				if constraintKey == "objectId" {
 					if utils.S(value) != "" {
@@ -1121,19 +1120,21 @@ func (d *DBController) reduceInRelation(className string, query types.M, schema 
 					}
 				}
 			}
+		} else {
+			relatedIds = append(relatedIds, types.S{})
+			isNegation = append(isNegation, false)
+		}
+		delete(query, key)
 
-			delete(query, key)
-
-			// 应用所有限制条件
-			for i, relatedID := range relatedIds {
-				// 此处 relatedID 含有至少一个元素
-				// 从 Join 表中查找的 ids，替换查询条件
-				ids := d.owningIds(className, key, relatedID)
-				if isNegation[i] {
-					query = d.addNotInObjectIdsIds(ids, query)
-				} else {
-					query = d.addInObjectIdsIds(ids, query)
-				}
+		// 应用所有限制条件
+		for i, relatedID := range relatedIds {
+			// 此处 relatedID 含有至少一个元素
+			// 从 Join 表中查找的 ids，替换查询条件
+			ids := d.owningIds(className, key, relatedID)
+			if isNegation[i] {
+				query = d.addNotInObjectIdsIds(ids, query)
+			} else {
+				query = d.addInObjectIdsIds(ids, query)
 			}
 		}
 	}

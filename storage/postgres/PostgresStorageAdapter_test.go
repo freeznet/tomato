@@ -3243,7 +3243,7 @@ func TestPostgresAdapter_Find(t *testing.T) {
 					"fields":    types.M{"key": types.M{"type": "String"}},
 				},
 				query:   types.M{},
-				options: types.M{"sort": []string{"key"}},
+				options: types.M{"sort": map[string]interface{}{"key": 1}},
 				dataObjects: []types.M{
 					types.M{"key": "hello"},
 					types.M{"key": "world"},
@@ -3266,7 +3266,7 @@ func TestPostgresAdapter_Find(t *testing.T) {
 					"fields":    types.M{"key": types.M{"type": "String"}},
 				},
 				query:   types.M{},
-				options: types.M{"sort": []string{"-key"}},
+				options: types.M{"sort": map[string]interface{}{"key": -1}},
 				dataObjects: []types.M{
 					types.M{"key": "hello"},
 					types.M{"key": "world"},

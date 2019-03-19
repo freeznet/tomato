@@ -336,7 +336,7 @@ func Test_Find(t *testing.T) {
 	Adapter.CreateObject(className, types.M{}, object)
 	className = "user"
 	query = types.M{}
-	options = types.M{"sort": []string{"key"}}
+	options = types.M{"sort": map[string]interface{}{"key": 1}}
 	results, err = TomatoDBController.Find(className, query, options)
 	expects = types.S{
 		types.M{
@@ -382,7 +382,7 @@ func Test_Find(t *testing.T) {
 	Adapter.CreateObject(className, types.M{}, object)
 	className = "user"
 	query = types.M{}
-	options = types.M{"sort": []string{"-key"}}
+	options = types.M{"sort": map[string]interface{}{"key": -1}}
 	results, err = TomatoDBController.Find(className, query, options)
 	expects = types.S{
 		types.M{
@@ -428,7 +428,7 @@ func Test_Find(t *testing.T) {
 	Adapter.CreateObject(className, types.M{}, object)
 	className = "user"
 	query = types.M{}
-	options = types.M{"sort": []string{"@key"}}
+	options = types.M{"sort": map[string]interface{}{"@key": 1}}
 	results, err = TomatoDBController.Find(className, query, options)
 	expectErr = errs.E(errs.InvalidKeyName, "Invalid field name: @key")
 	if err == nil || reflect.DeepEqual(expectErr, err) == false {
@@ -461,7 +461,7 @@ func Test_Find(t *testing.T) {
 	Adapter.CreateObject(className, types.M{}, object)
 	className = "user"
 	query = types.M{}
-	options = types.M{"sort": []string{"authData.facebook.id"}}
+	options = types.M{"sort": map[string]interface{}{"authData.facebook.id": 1}}
 	results, err = TomatoDBController.Find(className, query, options)
 	expectErr = errs.E(errs.InvalidKeyName, "Cannot sort by authData.facebook.id")
 	if err == nil || reflect.DeepEqual(expectErr, err) == false {
