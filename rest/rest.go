@@ -83,6 +83,12 @@ func Delete(auth *Auth, className, objectID string) error {
 			return errs.E(errs.ObjectNotFound, "Object not found for delete.")
 		}
 		inflatedObject["className"] = className
+		if className == "_Session" && !auth.IsMaster {
+			objectId, ok := inflatedObject["user"].(types.M)["objectId"].(string)
+			if auth.User == nil || !ok || objectId != auth.User["objectId"].(string) {
+				return errs.E(errs.InvalidSessionToken, "invalid session token")
+			}
+		}
 	}
 
 	destroy := NewDestroy(auth, className, types.M{"objectId": objectID}, inflatedObject)

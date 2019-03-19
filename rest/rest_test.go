@@ -249,7 +249,7 @@ func Test_Delete(t *testing.T) {
 	auth = Master()
 	objectID = "02"
 	err = Delete(auth, className, objectID)
-	expect = errs.E(errs.ObjectNotFound, "Object not found for delete.")
+	expect = errs.E(errs.ObjectNotFound, "Object not found.")
 	if reflect.DeepEqual(expect, err) == false {
 		t.Error("expect:", expect, "result:", err)
 	}
