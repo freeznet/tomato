@@ -41,6 +41,7 @@ type TriggerRequest struct {
 	Location       string // beforeFile 时使用
 	Data           []byte // beforeFile 时使用
 	ContentType    string // beforeFile 时使用
+	IsGet          bool
 }
 
 // FunctionRequest ...

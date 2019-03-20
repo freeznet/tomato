@@ -437,3 +437,43 @@ func TestPostgres_Update(t *testing.T) {
 	}
 	orm.TomatoDBController.DeleteEverything()
 }
+
+func TestPostgres_Trigger(t *testing.T) {
+	var object, schema types.M
+	var className string
+	var result, expect types.M
+	var err error
+	/********************************************************/
+	initPostgresEnv()
+	className = "user"
+	schema = types.M{
+		"fields": types.M{
+			"objectId": types.M{"type": "String"},
+			"key":      types.M{"type": "String"},
+		},
+	}
+	orm.Adapter.CreateClass(className, schema)
+	object = types.M{
+		"objectId": "01",
+		"key":      "hello",
+	}
+	cloud.BeforeFind(className, func(req cloud.TriggerRequest, res cloud.Response) {
+		if req.IsGet != true {
+			t.Error("expect: isGet is true", "result:", req.IsGet)
+		}
+	})
+	orm.Adapter.CreateObject(className, schema, object)
+	result, err = Get(Master(), className, "01", types.M{}, nil)
+	expect = types.M{
+		"results": types.S{
+			types.M{
+				"objectId": "01",
+				"key":      "hello",
+			},
+		},
+	}
+	if err != nil || reflect.DeepEqual(expect, result) == false {
+		t.Error("expect:", expect, "result:", result)
+	}
+	orm.TomatoDBController.DeleteEverything()
+}

@@ -22,7 +22,7 @@ func Find(auth *Auth, className string, where, options types.M, clientSDK map[st
 	if err != nil {
 		return nil, err
 	}
-	w, o, err := maybeRunQueryTrigger(cloud.TypeBeforeFind, className, where, options, auth)
+	w, o, err := maybeRunQueryTrigger(cloud.TypeBeforeFind, className, where, options, auth, false)
 	if err != nil {
 		return nil, err
 	}
@@ -42,12 +42,22 @@ func Find(auth *Auth, className string, where, options types.M, clientSDK map[st
 
 // Get ...
 func Get(auth *Auth, className, objectID string, options types.M, clientSDK map[string]string) (types.M, error) {
-
+	restWhere := types.M{"objectId": objectID}
 	err := enforceRoleSecurity("get", className, auth)
 	if err != nil {
 		return nil, err
 	}
-	query, err := NewQuery(auth, className, types.M{"objectId": objectID}, options, clientSDK)
+	w, o, err := maybeRunQueryTrigger(cloud.TypeBeforeFind, className, restWhere, options, auth, true)
+	if err != nil {
+		return nil, err
+	}
+	if w != nil {
+		restWhere = w
+	}
+	if o != nil {
+		options = o
+	}
+	query, err := NewQuery(auth, className, restWhere, options, clientSDK)
 	if err != nil {
 		return nil, err
 	}

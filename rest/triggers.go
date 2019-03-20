@@ -38,12 +38,13 @@ func getResponse(request cloud.TriggerRequest) *cloud.TriggerResponse {
 	return response
 }
 
-func getRequestQuery(triggerType string, auth *Auth, query types.M, count bool) cloud.TriggerRequest {
+func getRequestQuery(triggerType string, auth *Auth, query types.M, count bool, isGet bool) cloud.TriggerRequest {
 	request := cloud.TriggerRequest{
 		TriggerName: triggerType,
 		Query:       query,
 		Count:       count,
 		Master:      false,
+		IsGet:       isGet,
 	}
 
 	if auth == nil {
@@ -75,7 +76,7 @@ func maybeRunTrigger(triggerType string, auth *Auth, parseObject, originalParseO
 	return response.Response, response.Err
 }
 
-func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions types.M, auth *Auth) (types.M, types.M, error) {
+func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions types.M, auth *Auth, isGet bool) (types.M, types.M, error) {
 	trigger := cloud.GetTrigger(triggerType, className)
 	if trigger == nil {
 		return restWhere, restOptions, nil
@@ -105,7 +106,7 @@ func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions 
 		query["order"] = restOptions["order"]
 	}
 
-	request := getRequestQuery(triggerType, auth, query, count)
+	request := getRequestQuery(triggerType, auth, query, count, isGet)
 	response := getResponse(request)
 	trigger(request, response)
 
@@ -133,7 +134,6 @@ func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions 
 	if order := response.Response["order"]; order != nil {
 		restOptions["order"] = order
 	}
-
 
 	return restWhere, restOptions, nil
 }
