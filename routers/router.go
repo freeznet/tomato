@@ -142,6 +142,11 @@ func init() {
 				&controllers.HealthController{},
 			),
 		),
+		beego.NSNamespace("/push_audiences",
+			beego.NSInclude(
+				&controllers.AudiencesController{},
+			),
+		),
 	)
 	beego.AddNamespace(ns)
 }

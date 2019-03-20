@@ -17,9 +17,9 @@ import (
 var clpValidKeys = []string{"find", "count", "get", "create", "update", "delete", "addField", "readUserFields", "writeUserFields"}
 
 // SystemClasses 系统表
-var SystemClasses = []string{"_User", "_Installation", "_Role", "_Session", "_Product", "_PushStatus", "_JobStatus"}
+var SystemClasses = []string{"_User", "_Installation", "_Role", "_Session", "_Product", "_PushStatus", "_JobStatus", "_Audience"}
 
-var volatileClasses = []string{"_JobStatus", "_PushStatus", "_Hooks", "_GlobalConfig"}
+var volatileClasses = []string{"_JobStatus", "_PushStatus", "_Hooks", "_GlobalConfig", "_Audience"}
 
 // DefaultColumns 所有类的默认字段，以及系统类的默认字段
 var DefaultColumns = map[string]types.M{
@@ -106,6 +106,11 @@ var DefaultColumns = map[string]types.M{
 	"_GlobalConfig": types.M{
 		"objectId": types.M{"type": "String"},
 		"params":   types.M{"type": "Object"},
+	},
+	"_Audience": types.M{
+		"objectId": types.M{"type": "String"},
+		"name":     types.M{"type": "String"},
+		"query":    types.M{"type": "String"},
 	},
 }
 
@@ -1173,8 +1178,14 @@ func volatileClassesSchemas() []types.M {
 		"classLevelPermissions": types.M{},
 	}
 	jobStatusSchema := convertSchemaToAdapterSchema(s)
+	s = types.M{
+		"className":             "_Audience",
+		"fields":                DefaultColumns["_Audience"],
+		"classLevelPermissions": types.M{},
+	}
+	audienceSchema := convertSchemaToAdapterSchema(s)
 
-	results = []types.M{hooksSchema, jobStatusSchema, pushStatusSchema, globalConfigSchema}
+	results = []types.M{hooksSchema, jobStatusSchema, pushStatusSchema, globalConfigSchema, audienceSchema}
 	return results
 }
 

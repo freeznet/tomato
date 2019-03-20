@@ -44,7 +44,7 @@ func (f *FeaturesController) HandleGet() {
 			"immediatePush":  config.TConfig.PushAdapter != "",
 			"scheduledPush":  config.TConfig.ScheduledPush,
 			"storedPushData": config.TConfig.PushAdapter != "",
-			"pushAudiences":  false,
+			"pushAudiences":  true,
 		},
 		"schemas": types.M{
 			"addField":                  true,
