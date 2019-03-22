@@ -6,6 +6,7 @@ import (
 	"github.com/freeznet/tomato/rest"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
+	"time"
 )
 
 // CloudCodeController ...
@@ -13,9 +14,33 @@ type CloudCodeController struct {
 	ClassesController
 }
 
+func formatJobSchedule(jobSchedule types.M) types.M  {
+	if _, ok := jobSchedule["startAfter"]; !ok {
+		jobSchedule["startAfter"] = utils.TimetoString(time.Now())
+	}
+	return jobSchedule
+}
+
+func (c *CloudCodeController) validateJobSchedule()  {
+	jobs := cloud.GetJobs()
+	if v, ok := c.JSONBody["jobName"]; ok {
+		if _, ok := jobs[v.(string)]; !ok {
+			c.HandleError(errs.E(errs.InternalServerError, "Cannot Schedule a job that is not deployed"), 0)
+		}
+	}
+}
+
+//Prepare ...
+func (c *CloudCodeController) Prepare()  {
+	c.ClassesController.Prepare()
+	if c.Ctx.ResponseWriter.Started == false {
+		c.EnforceMasterKeyAccess()
+	}
+}
+
 // HandleFind ...
-// @router / [get]
-func (c *CloudCodeController) HandleFind()  {
+// @router /jobs [get]
+func (c *CloudCodeController) GetJobs()  {
 	response, err := rest.Find(c.Auth, "_JobSchedule", types.M{}, types.M{}, c.Info.ClientSDK)
 
 	if err != nil {
@@ -30,15 +55,15 @@ func (c *CloudCodeController) HandleFind()  {
 }
 
 // HandleGet ...
-// @router /jobs [get]
-func (c *CloudCodeController) HandleGet() {
+// @router /jobs/data [get]
+func (c *CloudCodeController) GetJobsData() {
 	jobs := cloud.GetJobs()
 	jobNames := []string{}
 	for n := range jobs {
 		jobNames = append(jobNames, n)
 	}
 
-	response, err := rest.Find(c.Auth, "_JobSchedule", types.M{}, types.M{}, c.Info.ClientSDK)
+	response, err := rest.Find(c.Auth, "_JobSchedule", types.M{}, types.M{}, nil)
 
 	if err != nil {
 		c.HandleError(err, 0)
@@ -58,31 +83,23 @@ func (c *CloudCodeController) HandleGet() {
 }
 
 // HandleCreate ...
-// @router / [create]
+// @router /jobs [create]
 func (c *CloudCodeController) HandleCreate()  {
-	jobs := cloud.GetJobs()
-	if v, ok := c.JSONBody["jobName"]; ok {
-		if _, ok := jobs[v.(string)]; !ok {
-			c.HandleError(errs.E(errs.InternalServerError, "Cannot Schedule a job that is not deployed"), 0)
-		}
-	}
+	c.validateJobSchedule()
 
 	c.ClassName = "_JobSchedule"
-	c.ClassesController.HandleUpdate()
+	c.JSONBody = formatJobSchedule(c.JSONBody)
+	c.ClassesController.HandleCreate()
 }
 
 // HandleUpdate ...
-// @router / [put]
+// @router /jobs/:objectId [put]
 func (c *CloudCodeController) HandleUpdate()  {
-	jobs := cloud.GetJobs()
-	if v, ok := c.JSONBody["jobName"]; ok {
-		if _, ok := jobs[v.(string)]; !ok {
-			c.HandleError(errs.E(errs.InternalServerError, "Cannot Schedule a job that is not deployed"), 0)
-		}
-	}
+	c.validateJobSchedule()
 
 	c.ClassName = "_JobSchedule"
 	c.ObjectID = c.Ctx.Input.Param(":objectId")
+	c.JSONBody = formatJobSchedule(c.JSONBody)
 	c.ClassesController.HandleUpdate()
 }
 
@@ -92,10 +109,3 @@ func (c *CloudCodeController) HandleDelete()  {
 	c.ClassName = "_JobSchedule"
 	c.ClassesController.HandleDelete()
 }
-
-// Post ...
-// @router / [post]
-func (c *CloudCodeController) Post() {
-	c.ClassesController.Post()
-}
-
