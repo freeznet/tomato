@@ -401,7 +401,7 @@ func (p *PostgresAdapter) DeleteAllClasses() error {
 		joins = append(joins, joinTablesForSchema(sch)...)
 	}
 
-	classes := []string{"_SCHEMA", "_PushStatus", "_JobStatus", "_Hooks", "_GlobalConfig", "_Audience"}
+	classes := []string{"_SCHEMA", "_PushStatus", "_JobStatus", "_JobSchedule", "_Hooks", "_GlobalConfig", "_Audience"}
 	classes = append(classes, classNames...)
 	classes = append(classes, joins...)
 
