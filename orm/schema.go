@@ -17,9 +17,9 @@ import (
 var clpValidKeys = []string{"find", "count", "get", "create", "update", "delete", "addField", "readUserFields", "writeUserFields"}
 
 // SystemClasses 系统表
-var SystemClasses = []string{"_User", "_Installation", "_Role", "_Session", "_Product", "_PushStatus", "_JobStatus", "_Audience"}
+var SystemClasses = []string{"_User", "_Installation", "_Role", "_Session", "_Product", "_PushStatus", "_JobStatus", "_Audience", "_JobSchedule"}
 
-var volatileClasses = []string{"_JobStatus", "_PushStatus", "_Hooks", "_GlobalConfig", "_Audience"}
+var volatileClasses = []string{"_JobStatus", "_PushStatus", "_Hooks", "_GlobalConfig", "_Audience", "_JobSchedule"}
 
 // DefaultColumns 所有类的默认字段，以及系统类的默认字段
 var DefaultColumns = map[string]types.M{
@@ -96,6 +96,16 @@ var DefaultColumns = map[string]types.M{
 		"message":    types.M{"type": "String"},
 		"params":     types.M{"type": "Object"}, // params received when calling the job
 		"finishedAt": types.M{"type": "Date"},
+	},
+	"_JobSchedule": types.M{
+		"jobName": 		 types.M{"type": "String"},
+		"description":   types.M{"type": "String"},
+		"params": 		 types.M{"type": "String"},
+		"startAfter": 	 types.M{"type": "String"},
+		"daysOfWeek": 	 types.M{"type": "Array"},
+		"timeOfDay": 	 types.M{"type": "String"},
+		"lastRun": 		 types.M{"type": "Number"},
+		"repeatMinutes": types.M{"type": "Number"},
 	},
 	"_Hooks": types.M{
 		"functionName": types.M{"type": "String"},
@@ -1184,8 +1194,14 @@ func volatileClassesSchemas() []types.M {
 		"classLevelPermissions": types.M{},
 	}
 	audienceSchema := convertSchemaToAdapterSchema(s)
+	s = types.M{
+		"className":             "_JobSchedule",
+		"fields":                types.M{},
+		"classLevelPermissions": types.M{},
+	}
+	jobScheduleSchema := convertSchemaToAdapterSchema(s)
 
-	results = []types.M{hooksSchema, jobStatusSchema, pushStatusSchema, globalConfigSchema, audienceSchema}
+	results = []types.M{hooksSchema, jobStatusSchema, jobScheduleSchema, pushStatusSchema, globalConfigSchema, audienceSchema}
 	return results
 }
 
