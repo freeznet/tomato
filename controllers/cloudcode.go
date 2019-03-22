@@ -38,7 +38,7 @@ func (c *CloudCodeController) Prepare()  {
 	}
 }
 
-// HandleFind ...
+// GetJobs ...
 // @router /jobs [get]
 func (c *CloudCodeController) GetJobs()  {
 	response, err := rest.Find(c.Auth, "_JobSchedule", types.M{}, types.M{}, c.Info.ClientSDK)
@@ -54,7 +54,7 @@ func (c *CloudCodeController) GetJobs()  {
 	c.ServeJSON()
 }
 
-// HandleGet ...
+// GetJobsData ...
 // @router /jobs/data [get]
 func (c *CloudCodeController) GetJobsData() {
 	jobs := cloud.GetJobs()
