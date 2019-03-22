@@ -82,9 +82,9 @@ func (c *CloudCodeController) GetJobsData() {
 	c.ServeJSON()
 }
 
-// HandleCreate ...
+// CreateJob ...
 // @router /jobs [create]
-func (c *CloudCodeController) HandleCreate()  {
+func (c *CloudCodeController) CreateJob()  {
 	c.validateJobSchedule()
 
 	c.ClassName = "_JobSchedule"
@@ -92,9 +92,9 @@ func (c *CloudCodeController) HandleCreate()  {
 	c.ClassesController.HandleCreate()
 }
 
-// HandleUpdate ...
+// EditJob ...
 // @router /jobs/:objectId [put]
-func (c *CloudCodeController) HandleUpdate()  {
+func (c *CloudCodeController) EditJob()  {
 	c.validateJobSchedule()
 
 	c.ClassName = "_JobSchedule"
@@ -103,9 +103,9 @@ func (c *CloudCodeController) HandleUpdate()  {
 	c.ClassesController.HandleUpdate()
 }
 
-// HandleDelete ...
+// DeleteJob ...
 // @router / [delete]
-func (c *CloudCodeController) HandleDelete()  {
+func (c *CloudCodeController) DeleteJob()  {
 	c.ClassName = "_JobSchedule"
 	c.ClassesController.HandleDelete()
 }
