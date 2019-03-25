@@ -83,7 +83,7 @@ func (c *CloudCodeController) GetJobsData() {
 }
 
 // CreateJob ...
-// @router /jobs [create]
+// @router /jobs [post]
 func (c *CloudCodeController) CreateJob()  {
 	c.validateJobSchedule()
 
