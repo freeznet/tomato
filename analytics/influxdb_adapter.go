@@ -1,12 +1,12 @@
 package analytics
 
 import (
+	"github.com/freeznet/influxdb1-client/client"
 	"time"
 
 	"github.com/freeznet/tomato/config"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
-	"github.com/influxdata/influxdb1-client/v2"
 )
 
 type influxDBAdapter struct {
