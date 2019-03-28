@@ -106,8 +106,8 @@ func (c *Cache) Clear()  {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.ll = nil
-	c.cache = nil
+	c.ll = list.New()
+	c.cache = make(map[interface{}]*list.Element)
 }
 
 // Len returns the number of items in the cache.

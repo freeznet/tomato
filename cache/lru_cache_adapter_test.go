@@ -7,7 +7,7 @@ import (
 
 func Test_LRU(t *testing.T)  {
 	var v interface{}
-	cache := newLRUCacheAdapter(5, 3)
+	cache := newLRUCacheAdapter(5)
 
 	cache.put("k1", "hello1", 0)
 	cache.put("k2", "hello2", 0)
@@ -15,10 +15,20 @@ func Test_LRU(t *testing.T)  {
 	cache.put("k4", "hello4", 0)
 	cache.put("k5", "hello5", 0)
 
-	if k1 := cache.get("k1"); k1 != nil {
+	cache.get("k1")
+	cache.get("k1")
+	cache.get("k1")
+	cache.get("k2")
+	cache.get("k3")
+	cache.get("k4")
+	cache.get("k5")
+	cache.put("k6", "hello6", 0)
+	cache.put("k7", "hello7", 0)
+	v = nil
+	if reflect.DeepEqual(v, cache.get("k1")) == false {
 		t.Error("get k1:", cache.get("k1"))
 	}
-	if k1 := cache.get("k2"); k1 != nil {
+	if reflect.DeepEqual(v, cache.get("k2")) == false {
 		t.Error("get k2:", cache.get("k2"))
 	}
 	/*******************************************************************/
@@ -33,6 +43,12 @@ func Test_LRU(t *testing.T)  {
 	if reflect.DeepEqual(v, cache.get("k4")) == false {
 		t.Error("get k4:", cache.get("k4"))
 	}
-
+	/*******************************************************************/
+	cache.put("k8", "hello8", 0)
+	cache.put("k9", "hello9", 0)
+	v = "hello9"
+	if reflect.DeepEqual(v, cache.get("k9")) == false {
+		t.Error("get k9:", cache.get("k9"))
+	}
 
 }

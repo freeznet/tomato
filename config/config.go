@@ -63,8 +63,7 @@ type Config struct {
 	RedisAddress                     string   // Redis 地址， CacheAdapter=Redis 时必填
 	RedisPassword                    string   // Redis 密码，选填
 	SchemaCacheTTL                   int      // Schema 缓存有效期，单位为秒。取值： -1 表示永不过期，0 表示使用 CacheAdapter 自身的有效期，或者大于 0 ，默认为 5 秒
-	CacheTTL						 int64
-	CacheMaxSize					 int
+	CacheMaxSize					 int	  // LRUCache最大长度
 	EnableSingleSchemaCache          bool     // 是否允许缓存唯一一份 SchemaCache ，默认为 false 不允许
 	WebhookKey                       string   // 用于云代码鉴权
 	EnableAccountLockout             bool     // 是否启用账户锁定规则，默认为 false 不启用
@@ -141,7 +140,6 @@ func parseConfig() {
 	TConfig.PreventLoginWithUnverifiedEmail = beego.AppConfig.DefaultBool("PreventLoginWithUnverifiedEmail", false)
 	TConfig.EmailVerifyTokenValidityDuration = beego.AppConfig.DefaultInt("EmailVerifyTokenValidityDuration", 0)
 	TConfig.SchemaCacheTTL = beego.AppConfig.DefaultInt("SchemaCacheTTL", 5)
-	TConfig.CacheTTL = beego.AppConfig.DefaultInt64("CacheTTL", 5)
 	TConfig.CacheMaxSize = beego.AppConfig.DefaultInt("CacheMaxSize", 10000)
 
 	TConfig.SMTPServer = beego.AppConfig.String("SMTPServer")

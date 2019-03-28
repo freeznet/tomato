@@ -6,21 +6,15 @@ import (
 )
 
 type lruCacheAdapter struct {
-	ttl int64
 	cache *lru.Cache
 }
 
-func newLRUCacheAdapter(ttl int64, maxSize int) *lruCacheAdapter {
-	if ttl == 0 {
-		ttl = config.TConfig.CacheTTL
-	}
-
+func newLRUCacheAdapter(maxSize int) *lruCacheAdapter {
 	if maxSize ==0 {
 		maxSize = config.TConfig.CacheMaxSize
 	}
 
 	lru := &lruCacheAdapter{
-		ttl: ttl,
 		cache: lru.New(maxSize),
 	}
 
@@ -35,7 +29,6 @@ func (lru *lruCacheAdapter) get(key string) interface{} {
 }
 
 func (lru *lruCacheAdapter) put(key string, value interface{}, ttl int64)  {
-	lru.ttl = ttl
 	lru.cache.Add(key, value)
 }
 
