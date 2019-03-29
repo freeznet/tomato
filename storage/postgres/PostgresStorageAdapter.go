@@ -2381,8 +2381,10 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 						} else {
 							inPatterns := []string{}
 							for listIndex, listElem := range baseArray {
-								values = append(values, listElem)
-								inPatterns = append(inPatterns, fmt.Sprintf("$%d", index+listIndex))
+								if listElem != nil {
+									values = append(values, listElem)
+									inPatterns = append(inPatterns, fmt.Sprintf("$%d", index+listIndex))
+								}
 							}
 							patterns = append(patterns, fmt.Sprintf(`"%s" %s IN (%s)`, fieldName, not, strings.Join(inPatterns, ",")))
 							index = index + len(inPatterns)

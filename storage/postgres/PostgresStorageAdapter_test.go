@@ -6197,3 +6197,75 @@ func TestPostgresAdapter_RawBatchInsert(t *testing.T) {
 		fmt.Println(err)
 	}
 }
+
+func TestPostgresAdapter_ContainedAllInNull(t *testing.T)  {
+	db := openDB()
+	p := NewPostgresAdapter("", db)
+	initialize := func(className string, schema types.M, objects []types.M) {
+		p.CreateClass(className, schema)
+		for _, object := range objects {
+			p.CreateObject(className, schema, object)
+		}
+	}
+	clean := func(className string) {
+		db.Exec(`DROP TABLE "` + className + `"`)
+		db.Exec(`DROP TABLE "_SCHEMA"`)
+	}
+	type args struct {
+		className 	string
+		schema 		types.M
+		query 		types.M
+		options 	types.M
+		dataObjects []types.M
+	}
+	tests := []struct {
+		name       string
+		args       args
+		want       []types.M
+		wantErr    error
+		initialize func(className string, schema types.M, objects []types.M)
+		clean      func(className string)
+	}{
+		{
+			name: "1",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "String"},
+						"key2": types.M{"type": "String"},
+					},
+				},
+				query:   types.M{"key": types.M{"$in": types.S{"hello", "hi", "", nil}},},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": "hello", "key2": "world"},
+					types.M{"key": "hi", "key2": "friend"},
+					types.M{"key": "hello1", "key2": "world1"},
+					types.M{"key": "hi1", "key2": "friend1"},
+				},
+			},
+			want: []types.M{
+				types.M{"key": "hello", "key2": "world"},
+				types.M{"key": "hi", "key2": "friend"},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+	}
+	for _, tt := range tests {
+		tt.initialize(tt.args.className, tt.args.schema, tt.args.dataObjects)
+		got, err := p.Find(tt.args.className, tt.args.schema, tt.args.query, tt.args.options)
+		fmt.Println(got)
+		tt.clean(tt.args.className)
+		if reflect.DeepEqual(err, tt.wantErr) == false {
+			t.Errorf("%q. PostgresAdapter.Find() error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			continue
+		}
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("%q. PostgresAdapter.Find() = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
