@@ -1587,7 +1587,11 @@ func (p *PostgresAdapter) FindOneAndUpdate(className string, schema, query, upda
 	values = append(values, where.values...)
 
 	// TODO 需要添加限制，只更新一条，UpdateObjectsByQuery 时更新多条
-	qs := fmt.Sprintf(`UPDATE "%s" SET %s WHERE %s RETURNING *`, className, strings.Join(updatePatterns, ","), where.pattern)
+	whereClause := ""
+	if len(where.pattern) > 0 {
+		whereClause = fmt.Sprintf("WHERE %s", where.pattern)
+	}
+	qs := fmt.Sprintf(`UPDATE "%s" SET %s %s RETURNING *`, className, strings.Join(updatePatterns, ","), whereClause)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {

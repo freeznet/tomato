@@ -379,6 +379,9 @@ func validateCacheConfiguration() {
 	if TConfig.SchemaCacheTTL < -1 {
 		log.Fatalln("SchemaCacheTTL should be -1 or 0 or an integer greater than 0")
 	}
+	if adapter == "LRU" && TConfig.CacheMaxSize <= 0 {
+		log.Fatalln("CacheMaxSize for LRU Cache should be greater than 0")
+	}
 }
 
 // validateAnalyticsConfiguration 校验分析模块相关参数
