@@ -368,8 +368,8 @@ func validateCacheConfiguration() {
 	adapter := TConfig.CacheAdapter
 	switch adapter {
 	case "", "InMemory", "Null":
-	case "Redis":
 	case "LRU":
+	case "Redis":
 		if TConfig.RedisAddress == "" {
 			log.Fatalln("RedisAddress is required")
 		}

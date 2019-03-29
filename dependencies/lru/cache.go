@@ -106,7 +106,7 @@ func (c *Cache) Clear()  {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.ll = list.New()
+	c.ll.Init()
 	c.cache = make(map[interface{}]*list.Element)
 }
 
