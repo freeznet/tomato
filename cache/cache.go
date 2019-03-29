@@ -22,7 +22,7 @@ func init() {
 	} else if a == "Null" {
 		adapter = newNullMemoryCacheAdapter()
 	} else {
-		adapter = newInMemoryCacheAdapter(5)
+		adapter = newLRUCacheAdapter(config.TConfig.CacheMaxSize)
 	}
 	Role = &SubCache{
 		prefix: "role",

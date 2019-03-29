@@ -67,6 +67,20 @@ func (c *Cache) Get(key interface{}) (value interface{}, ok bool) {
 	return
 }
 
+func (c *Cache) Remove(key interface{})  {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if ele, hit := c.cache[key]; hit {
+		c.removeElement(ele)
+	}
+}
+
+func (c *Cache) removeElement(ele *list.Element)  {
+	c.ll.Remove(ele)
+	ent := ele.Value.(*entry)
+	delete(c.cache, ent.key)
+}
+
 // RemoveOldest removes the oldest item in the cache and returns its key and value.
 // If the cache is empty, the empty string and nil are returned.
 func (c *Cache) RemoveOldest() (key, value interface{}) {
@@ -86,6 +100,14 @@ func (c *Cache) removeOldest() (key, value interface{}) {
 	delete(c.cache, ent.key)
 	return ent.key, ent.value
 
+}
+
+func (c *Cache) Clear()  {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.ll.Init()
+	c.cache = make(map[interface{}]*list.Element)
 }
 
 // Len returns the number of items in the cache.
