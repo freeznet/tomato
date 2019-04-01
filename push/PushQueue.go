@@ -7,7 +7,6 @@ import (
 	"github.com/freeznet/tomato/livequery/pubsub"
 	"github.com/freeznet/tomato/rest"
 	"github.com/freeznet/tomato/types"
-	"github.com/freeznet/tomato/utils"
 )
 
 const (
@@ -38,19 +37,11 @@ func newPushQueue(channel string, batchSize int) *pushQueue {
 
 func (q *pushQueue) enqueue(body, where types.M, auth *rest.Auth, status *pushStatus) error {
 	limit := q.batchSize
-	order := ""
-	if isPushIncrementing(body) {
-		order = "badge,createdAt"
-	} else {
-		order = "createdAt"
-	}
 
+	where = ApplyDeviceTokenExists(where)
 
-	where = utils.CopyMapM(where)
-	if _, ok := where["deviceToken"]; !ok {
-		where["deviceToken"] = types.M{"$exists": true}
-	}
-
+	// Order by objectId so no impact on the DB
+	order := "objectId"
 	options := types.M{
 		"limit": 0,
 		"count": true,

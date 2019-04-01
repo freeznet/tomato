@@ -31,6 +31,7 @@ func (p *PushController) HandlePost() {
 		p.HandleError(err, 0)
 		return
 	}
+	where = push.ApplyDeviceTokenExists(where)
 	onPushStatusSaved := func(pushStatusID string) {
 		p.Ctx.Output.Header("X-Parse-Push-Status-Id", pushStatusID)
 	}

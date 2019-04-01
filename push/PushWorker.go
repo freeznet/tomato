@@ -80,7 +80,7 @@ func (p *pushWorker) run(workItem types.M) error {
 	status := utils.M(workItem["pushStatus"])
 
 	auth := rest.Master()
-	where := utils.M(query["where"])
+	where := ApplyDeviceTokenExists(utils.M(query["where"]))
 	delete(query, "where")
 
 	response, err := rest.Find(auth, "_Installation", where, query, nil)
