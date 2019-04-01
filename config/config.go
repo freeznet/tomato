@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"net"
 	"time"
 
 	"log"
@@ -20,6 +22,7 @@ type Config struct {
 	DatabaseURI                      string   // 数据库地址
 	AppID                            string   // 必填
 	MasterKey                        string   // 必填
+	MasterKeyIps					 []string // 选题，允许使用masterKey的IP列表，默认为[]
 	ReadOnlyMasterKey				 string   // 只读MasterKey
 	ClientKey                        string   // 选填
 	JavaScriptKey                    string   // 选填
@@ -117,6 +120,7 @@ func parseConfig() {
 	TConfig.DatabaseURI = beego.AppConfig.String("DatabaseURI")
 	TConfig.AppID = beego.AppConfig.String("AppID")
 	TConfig.MasterKey = beego.AppConfig.String("MasterKey")
+	TConfig.MasterKeyIps = beego.AppConfig.DefaultStrings("MasterKeyIps", []string{})
 	TConfig.ReadOnlyMasterKey = beego.AppConfig.String("ReadOnlyMasterKey")
 	TConfig.ClientKey = beego.AppConfig.String("ClientKey")
 	TConfig.JavaScriptKey = beego.AppConfig.String("JavaScriptKey")
@@ -223,6 +227,7 @@ func Validate() {
 	validatePasswordPolicy()
 	validateCacheConfiguration()
 	validateAnalyticsConfiguration()
+	validateMasterKeyIps()
 }
 
 // validateApplicationConfiguration 校验应用相关参数
@@ -304,6 +309,15 @@ func validateMailConfiguration() {
 	}
 	if TConfig.EmailVerifyTokenValidityDuration < 0 {
 		log.Fatalln("Email verify token validity duration must be a value greater than 0")
+	}
+}
+
+// 检查masterKeyIps中的ip地址格式是否正确
+func validateMasterKeyIps()  {
+	for _, ip := range TConfig.MasterKeyIps {
+		if address := net.ParseIP(ip); address == nil {
+		log.Fatalln(fmt.Sprintf("Invalid ip in masterKeyIps: %s", ip))
+		}
 	}
 }
 
