@@ -22,7 +22,7 @@ type Config struct {
 	DatabaseURI                      string   // 数据库地址
 	AppID                            string   // 必填
 	MasterKey                        string   // 必填
-	MasterKeyIps					 []string // 选题，允许使用masterKey的IP列表，默认为[]
+	MasterKeyIps					 []string // 选填，允许使用masterKey的IP列表，默认为[]
 	ReadOnlyMasterKey				 string   // 只读MasterKey
 	ClientKey                        string   // 选填
 	JavaScriptKey                    string   // 选填
@@ -316,7 +316,7 @@ func validateMailConfiguration() {
 func validateMasterKeyIps()  {
 	for _, ip := range TConfig.MasterKeyIps {
 		if address := net.ParseIP(ip); address == nil {
-		log.Fatalln(fmt.Sprintf("Invalid ip in masterKeyIps: %s", ip))
+			log.Fatalln(fmt.Sprintf("Invalid ip in masterKeyIps: %s", ip))
 		}
 	}
 }
