@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"reflect"
 	"strings"
 
 	"github.com/astaxie/beego"
@@ -159,6 +160,21 @@ func (b *BaseController) Prepare() {
 	}
 
 	b.Info = info
+
+	ip := b.Ctx.Input.IP()
+	if info.MasterKey != "" && config.TConfig.MasterKey != "" && len(config.TConfig.MasterKeyIps) != 0 {
+		// 判断请求的ip是否在masterKeyIps中
+		ipInMasterKeyIps := false
+		for _, v := range config.TConfig.MasterKeyIps {
+			if reflect.DeepEqual(ip, v) {
+				ipInMasterKeyIps = true
+			}
+		}
+		if !ipInMasterKeyIps {
+			b.InvalidRequest()
+			return
+		}
+	}
 
 	// 校验请求权限
 	if info.AppID != config.TConfig.AppID {
