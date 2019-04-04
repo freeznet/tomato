@@ -58,3 +58,12 @@ func validatePushType(where types.M, validPushTypes []string) error {
 
 	return nil
 }
+
+// Force filtering on only valid device tokens
+func ApplyDeviceTokenExists(where types.M) types.M {
+	where = utils.CopyMapM(where)
+	if _, ok := where["deviceToken"]; !ok {
+		where["deviceToken"] = types.M{"$exists": true}
+	}
+	return where
+}
