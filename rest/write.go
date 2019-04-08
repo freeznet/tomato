@@ -544,7 +544,14 @@ func (w *Write) handleAuthData(authData types.M) error {
 	w.storage["authProvider"] = strings.Join(keys, ",")
 
 	if results != nil && len(results) > 0 {
-		if w.query == nil {
+		var userId interface{}
+		if w.query != nil && w.query["objectId"] != nil {
+			userId = w.query["objectId"]
+		} else if w.auth != nil && w.auth.User != nil && w.auth.User["id"] != nil {
+			userId = w.auth.User["id"]
+		}
+
+		if userId == nil || userId == utils.M(results[0])["objectId"] {
 			// 存在一个用户，并且是 create 请求时，进行登录
 			userResult := utils.M(results[0])
 			delete(userResult, "password")
@@ -596,10 +603,10 @@ func (w *Write) handleAuthData(authData types.M) error {
 			// 更新数据库中的 authData 字段
 			_, err = orm.TomatoDBController.Update(w.className, types.M{"objectId": w.data["objectId"]}, types.M{"authData": mutatedAuthData}, types.M{}, false)
 			return err
-		} else if w.query != nil && w.query["objectId"] != nil {
+		} else if userId != nil {
 			// 存在一个用户，并且当前为 update 请求，校验 objectId 是否一致
 			user := utils.M(results[0])
-			if utils.S(user["objectId"]) != utils.S(w.query["objectId"]) {
+			if utils.S(user["objectId"]) != utils.S(userId) {
 				// auth 已经被使用
 				return errs.E(errs.AccountAlreadyLinked, "this auth is already used")
 			}
