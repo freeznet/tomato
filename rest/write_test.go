@@ -2118,6 +2118,7 @@ func Test_handleAuthData(t *testing.T) {
 	var response types.M
 	var location string
 	/***************************************************************/
+	initEnv()
 	className = "_User"
 	query = nil
 	data = types.M{
@@ -2135,7 +2136,6 @@ func Test_handleAuthData(t *testing.T) {
 		t.Error("expect:", expect, "result:", result)
 	}
 	/***************************************************************/
-	initEnv()
 	config.TConfig.EnableAnonymousUsers = true
 	className = "_User"
 	schema = types.M{
@@ -2410,6 +2410,46 @@ func Test_handleAuthData(t *testing.T) {
 	expect = errs.E(errs.AccountAlreadyLinked, "this auth is already used")
 	if reflect.DeepEqual(expect, result) == false {
 		t.Error("expect:", expect, "result:", result)
+	}
+	orm.TomatoDBController.DeleteEverything()
+	/***************************************************************/
+	// 'should be able to update user with authData passed'
+	config.TConfig.EnableAnonymousUsers = true
+	initEnv()
+	className = "_User"
+	schema = types.M{
+		"fields": types.M{},
+	}
+	orm.Adapter.CreateClass(className, schema)
+	object = types.M{
+		"objectId": "102",
+		"key": "value",
+		"authData": types.M{
+			"anonymous": types.M{
+				"id":    "1001",
+			},
+		},
+	}
+	orm.TomatoDBController.Create(className, object, nil)
+	rets, _ := orm.TomatoDBController.Find(className, types.M{}, nil)
+	className = "_User"
+	query = types.M{"objectId": rets[0].(types.M)["objectId"].(string)}
+	data = types.M{
+		"key": "newvalue",
+		"authData": types.M{
+			"anonymous": types.M{
+				"id":    "1001",
+			},
+		},
+	}
+	originalData = nil
+	w, _ = NewWrite(Master(), className, query, data, originalData, nil)
+	_, result =  w.Execute()
+	rets, _ = orm.TomatoDBController.Find(className, types.M{}, nil)
+	resultStr := rets[0].(types.M)["key"]
+	expectStr := "newvalue"
+	if reflect.DeepEqual(expectStr, resultStr) == false {
+		t.Error("expect:", expectStr, "result:", resultStr)
 	}
 	orm.TomatoDBController.DeleteEverything()
 }
