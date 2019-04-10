@@ -572,10 +572,12 @@ func (w *Write) handleAuthData(authData types.M) error {
 				}
 			}
 
-			w.response = types.M{
-				"status":   200,
-				"response": userResult,
-				"location": w.location(),
+			if w.query == nil || w.query["objectId"] == nil {
+				w.response = types.M{
+					"status":   200,
+					"response": userResult,
+					"location": w.location(),
+				}
 			}
 
 			// 未修改任何数据，直接返回
@@ -589,20 +591,23 @@ func (w *Write) handleAuthData(authData types.M) error {
 			if err != nil {
 				return err
 			}
-			// 添加新的 authData 到返回数据中
-			userAuthData := utils.M(userResult["authData"])
-			if userAuthData == nil {
-				userAuthData = types.M{}
-			}
-			for provider, providerData := range mutatedAuthData {
-				userAuthData[provider] = providerData
-			}
-			userResult["authData"] = userAuthData
-			w.response["response"] = userResult
 
-			// 更新数据库中的 authData 字段
-			_, err = orm.TomatoDBController.Update(w.className, types.M{"objectId": w.data["objectId"]}, types.M{"authData": mutatedAuthData}, types.M{}, false)
-			return err
+			if w.response != nil {
+				// 添加新的 authData 到返回数据中
+				userAuthData := utils.M(userResult["authData"])
+				if userAuthData == nil {
+					userAuthData = types.M{}
+				}
+				for provider, providerData := range mutatedAuthData {
+					userAuthData[provider] = providerData
+				}
+				userResult["authData"] = userAuthData
+				w.response["response"] = userResult
+
+				// 更新数据库中的 authData 字段
+				_, err = orm.TomatoDBController.Update(w.className, types.M{"objectId": w.data["objectId"]}, types.M{"authData": mutatedAuthData}, types.M{}, false)
+				return err
+			}
 		} else if userId != nil {
 			// 存在一个用户，并且当前为 update 请求，校验 objectId 是否一致
 			user := utils.M(results[0])
