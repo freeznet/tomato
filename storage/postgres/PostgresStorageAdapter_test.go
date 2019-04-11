@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
-	"fmt"
 )
 
 func Test_parseTypeToPostgresType(t *testing.T) {
@@ -1842,7 +1842,8 @@ func Test_literalizeRegexPart(t *testing.T) {
 }
 
 func openDB() *sql.DB {
-	db, err := sql.Open("postgres", "postgres://postgres:45678zzr@localhost:5432/test?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres:yyhroot@localhost:5432/test?sslmode=disable")
+	//db, err := sql.Open("postgres", "postgres://postgres:45678zzr@localhost:5432/test?sslmode=disable")
 	//db, err := sql.Open("postgres", "postgres://postgres:123456@192.168.99.100:5432/postgres?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
@@ -6254,6 +6255,84 @@ func TestPostgresAdapter_ContainedAllInNull(t *testing.T)  {
 			initialize: initialize,
 			clean:      clean,
 		},
+		{
+			name: "2",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "Object"},
+					},
+				},
+				query:   types.M{"key.group": types.M{"$in": types.S{"A"}}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": types.S{"A", "B"}}},
+					types.M{"key": types.M{"group": types.S{"A", "C"}}},
+					types.M{"key": types.M{"group": types.S{"B", "C"}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": types.S{"A", "B"}}},
+				types.M{"key": types.M{"group": types.S{"A", "C"}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "3",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "Object"},
+					},
+				},
+				query:   types.M{"key.group": types.M{"$in": types.S{1}}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": types.S{1, 2}}},
+					types.M{"key": types.M{"group": types.S{1, 3}}},
+					types.M{"key": types.M{"group": types.S{2, 3}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": types.S{1, 2}}},
+				types.M{"key": types.M{"group": types.S{1, 3}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "4",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "Object"},
+					},
+				},
+				query:   types.M{"key.group": types.M{"$regex": "A"}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": types.S{"A", "B"}}},
+					types.M{"key": types.M{"group": types.S{"A", "C"}}},
+					types.M{"key": types.M{"group": types.S{"B", "C"}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": types.S{"A", "B"}}},
+				types.M{"key": types.M{"group": types.S{"A", "C"}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
 	}
 	for _, tt := range tests {
 		tt.initialize(tt.args.className, tt.args.schema, tt.args.dataObjects)
@@ -6264,6 +6343,7 @@ func TestPostgresAdapter_ContainedAllInNull(t *testing.T)  {
 			t.Errorf("%q. PostgresAdapter.Find() error = %v, wantErr %v", tt.name, err, tt.wantErr)
 			continue
 		}
+
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%q. PostgresAdapter.Find() = %v, want %v", tt.name, got, tt.want)
 		}
