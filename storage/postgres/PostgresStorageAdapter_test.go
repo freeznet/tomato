@@ -720,7 +720,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = '"hello"'`,
+				pattern: `"key"->>'sub' = '"hello"'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -736,7 +736,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = 'true'`,
+				pattern: `"key"->>'sub' = 'true'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -752,7 +752,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = '1024'`,
+				pattern: `"key"->>'sub' = '1024'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -768,7 +768,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = '{"key":"hello"}'`,
+				pattern: `"key"->>'sub' = '{"key":"hello"}'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -784,7 +784,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = '["hello","world"]'`,
+				pattern: `"key"->>'sub' = '["hello","world"]'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -800,7 +800,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'subkey'->'sub' = '"hello"'`,
+				pattern: `"key"->'subkey'->>'sub' = '"hello"'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -1842,8 +1842,7 @@ func Test_literalizeRegexPart(t *testing.T) {
 }
 
 func openDB() *sql.DB {
-	db, err := sql.Open("postgres", "postgres://postgres:yyhroot@localhost:5432/test?sslmode=disable")
-	//db, err := sql.Open("postgres", "postgres://postgres:45678zzr@localhost:5432/test?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres:45678zzr@localhost:5432/test?sslmode=disable")
 	//db, err := sql.Open("postgres", "postgres://postgres:123456@192.168.99.100:5432/postgres?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
