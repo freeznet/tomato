@@ -720,7 +720,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->>'sub' = '"hello"'`,
+				pattern: `"key"->>'sub' = 'hello'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -800,7 +800,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'subkey'->>'sub' = '"hello"'`,
+				pattern: `"key"->'subkey'->>'sub' = 'hello'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},

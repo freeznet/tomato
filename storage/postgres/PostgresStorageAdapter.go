@@ -2260,7 +2260,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 
 		if strings.Contains(fieldName, ".") {
 			name := transformDotField(fieldName)
-			b, err := json.Marshal(fieldValue)
+			_, err := json.Marshal(fieldValue)
 			if err != nil {
 				return nil, err
 			}
@@ -2281,7 +2281,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 				} else if _, ok := utils.M(fieldValue)["$regex"]; ok {
 					// Handle later
 				} else {
-					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
+					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, fieldValue))
 				}
 			}
 		} else if fieldValue == nil {
