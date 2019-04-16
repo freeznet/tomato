@@ -861,7 +861,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 		fields = types.M{}
 	}
 
-	var results []types.M
+	results := []types.M{}
 	var resultColumns []string
 	for rows.Next() {
 		if resultColumns == nil {
