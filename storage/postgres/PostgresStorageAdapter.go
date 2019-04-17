@@ -2260,7 +2260,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 
 		if strings.Contains(fieldName, ".") {
 			name := transformDotField(fieldName)
-			_, err := json.Marshal(fieldValue)
+			b, err := json.Marshal(fieldValue)
 			if err != nil {
 				return nil, err
 			}
@@ -2280,7 +2280,11 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					patterns = append(patterns, fmt.Sprintf(`(%s)::jsonb @> '[%v]'::jsonb`, name, strings.Join(inPatterns, ",")))
 				} else if _, ok := utils.M(fieldValue)["$regex"]; ok {
 					// Handle later
-				} else {
+				} else if reflect.TypeOf(fieldValue).String() == "types.M" || reflect.TypeOf(fieldValue).String() == "types.S" {
+					// 当数据类型为types.M或types.S时，使用->操作
+					name = strings.Join(transformDotFieldToComponents(fieldName), "->")
+					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
+				}else {
 					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, fieldValue))
 				}
 			}

@@ -768,7 +768,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->>'sub' = '{"key":"hello"}'`,
+				pattern: `"key"->'sub' = '{"key":"hello"}'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -784,7 +784,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->>'sub' = '["hello","world"]'`,
+				pattern: `"key"->'sub' = '["hello","world"]'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -6327,6 +6327,30 @@ func TestPostgresAdapter_ContainedAllInNull(t *testing.T)  {
 			want: []types.M{
 				types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
 				types.M{"key": types.M{"group": []interface{}{"A", "C"}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+
+		{
+			name: "5",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields":    types.M{"key": types.M{"type": "Object"}},
+				},
+				query:   types.M{"key.group": types.S{"A", "B"}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
+					types.M{"key": types.M{"group": []interface{}{"A", "C"}}},
+					types.M{"key": types.M{"group": []interface{}{"C", "B"}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
 			},
 			wantErr:    nil,
 			initialize: initialize,
