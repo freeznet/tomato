@@ -861,7 +861,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 		fields = types.M{}
 	}
 
-	var results []types.M
+	results := []types.M{}
 	var resultColumns []string
 	for rows.Next() {
 		if resultColumns == nil {
@@ -2161,6 +2161,28 @@ func handleDotFields(object types.M) types.M {
 	return object
 }
 
+func transformDotFieldToComponents(fieldName string) []string {
+	components := strings.Split(fieldName, ".")
+	for index, cmpt := range components {
+		if index == 0 {
+			components[index] = `"` + cmpt + `"`
+		} else {
+			components[index] = `'` + cmpt + `'`
+		}
+	}
+	return components
+}
+
+func transformDotField(fieldName string) string {
+	if !strings.Contains(fieldName, ".") {
+		return `"` + fieldName + `"`
+	}
+	components := transformDotFieldToComponents(fieldName)
+	name := strings.Join(components[0:len(components) - 1], "->")
+	name += "->>" + components[len(components) - 1]
+	return name
+}
+
 func transformAggregateField(fieldName string) string {
 	return fieldName[0:1]
 }
@@ -2237,15 +2259,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 		}
 
 		if strings.Contains(fieldName, ".") {
-			components := strings.Split(fieldName, ".")
-			for index, cmpt := range components {
-				if index == 0 {
-					components[index] = `"` + cmpt + `"`
-				} else {
-					components[index] = `'` + cmpt + `'`
-				}
-			}
-			name := strings.Join(components, "->")
+			name := transformDotField(fieldName)
 			b, err := json.Marshal(fieldValue)
 			if err != nil {
 				return nil, err
@@ -2253,7 +2267,26 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 			if fieldValue == nil {
 				patterns = append(patterns, fmt.Sprintf(`%s IS NULL`, name))
 			} else {
-				patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
+				inPatterns := []string{}
+				if fieldValueIn, ok := utils.M(fieldValue)["$in"]; ok {
+					name = strings.Join(transformDotFieldToComponents(fieldName), "->")
+					for _, listElem := range utils.A(fieldValueIn) {
+						if reflect.TypeOf(listElem).String() == "string" {
+							inPatterns = append(inPatterns, fmt.Sprintf(`"%v"`, listElem))
+						} else {
+							inPatterns = append(inPatterns, fmt.Sprintf("%v", listElem))
+						}
+					}
+					patterns = append(patterns, fmt.Sprintf(`(%s)::jsonb @> '[%v]'::jsonb`, name, strings.Join(inPatterns, ",")))
+				} else if _, ok := utils.M(fieldValue)["$regex"]; ok {
+					// Handle later
+				} else if reflect.TypeOf(fieldValue).String() == "types.M" || reflect.TypeOf(fieldValue).String() == "types.S" {
+					// 当数据类型为types.M或types.S时，使用->操作
+					name = strings.Join(transformDotFieldToComponents(fieldName), "->")
+					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
+				}else {
+					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, fieldValue))
+				}
 			}
 		} else if fieldValue == nil {
 			patterns = append(patterns, fmt.Sprintf(`"%s" IS NULL`, fieldName))
@@ -2379,6 +2412,10 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 							values = append(values, string(j))
 							index = index + 1
 						} else {
+							// Handle Nested Dot Notation Above
+							if strings.Contains(fieldName, ".") {
+								return
+							}
 							inPatterns := []string{}
 							for listIndex, listElem := range baseArray {
 								if listElem != nil {
@@ -2517,9 +2554,10 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					}
 				}
 
+				name := transformDotField(fieldName)
 				regex = processRegexPattern(regex)
 
-				patterns = append(patterns, fmt.Sprintf(`"%s" %s '%s'`, fieldName, operator, regex))
+				patterns = append(patterns, fmt.Sprintf(`%s %s '%s'`, name, operator, regex))
 			}
 
 			if utils.S(value["__type"]) == "Pointer" {
@@ -2548,10 +2586,6 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					index = index + 1
 				}
 			}
-		}
-
-		if fieldValue == nil {
-			patterns = append(patterns, fmt.Sprintf(`"%s" IS NULL`, fieldName))
 		}
 
 		if initialPatternsLength == len(patterns) {

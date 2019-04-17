@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
-	"fmt"
 )
 
 func Test_parseTypeToPostgresType(t *testing.T) {
@@ -720,7 +720,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = '"hello"'`,
+				pattern: `"key"->>'sub' = 'hello'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -736,7 +736,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = 'true'`,
+				pattern: `"key"->>'sub' = 'true'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -752,7 +752,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'sub' = '1024'`,
+				pattern: `"key"->>'sub' = '1024'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -800,7 +800,7 @@ func Test_buildWhereClause(t *testing.T) {
 				index: 1,
 			},
 			want: &whereClause{
-				pattern: `"key"->'subkey'->'sub' = '"hello"'`,
+				pattern: `"key"->'subkey'->>'sub' = 'hello'`,
 				values:  types.S{},
 				sorts:   []string{},
 			},
@@ -6254,6 +6254,108 @@ func TestPostgresAdapter_ContainedAllInNull(t *testing.T)  {
 			initialize: initialize,
 			clean:      clean,
 		},
+		{
+			name: "2",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "Object"},
+					},
+				},
+				query:   types.M{"key.group": types.M{"$in": types.S{"A"}}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
+					types.M{"key": types.M{"group": []interface{}{"A", "C"}}},
+					types.M{"key": types.M{"group": []interface{}{"B", "C"}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
+				types.M{"key": types.M{"group": []interface{}{"A", "C"}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "3",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "Object"},
+					},
+				},
+				query:   types.M{"key.group": types.M{"$in": types.S{1}}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": []interface{}{float64(1), float64(2)}}},
+					types.M{"key": types.M{"group": []interface{}{float64(1), float64(3)}}},
+					types.M{"key": types.M{"group": []interface{}{float64(2), float64(3)}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": []interface{}{float64(1), float64(2)}}},
+				types.M{"key": types.M{"group": []interface{}{float64(1), float64(3)}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+		{
+			name: "4",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key":  types.M{"type": "Object"},
+					},
+				},
+				query:   types.M{"key.group": types.M{"$regex": "A"}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
+					types.M{"key": types.M{"group": []interface{}{"A", "C"}}},
+					types.M{"key": types.M{"group": []interface{}{"B", "C"}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
+				types.M{"key": types.M{"group": []interface{}{"A", "C"}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
+
+		{
+			name: "5",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields":    types.M{"key": types.M{"type": "Object"}},
+				},
+				query:   types.M{"key.group": types.S{"A", "B"}},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
+					types.M{"key": types.M{"group": []interface{}{"A", "C"}}},
+					types.M{"key": types.M{"group": []interface{}{"C", "B"}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"group": []interface{}{"A", "B"}}},
+			},
+			wantErr:    nil,
+			initialize: initialize,
+			clean:      clean,
+		},
 	}
 	for _, tt := range tests {
 		tt.initialize(tt.args.className, tt.args.schema, tt.args.dataObjects)
@@ -6264,6 +6366,7 @@ func TestPostgresAdapter_ContainedAllInNull(t *testing.T)  {
 			t.Errorf("%q. PostgresAdapter.Find() error = %v, wantErr %v", tt.name, err, tt.wantErr)
 			continue
 		}
+
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%q. PostgresAdapter.Find() = %v, want %v", tt.name, got, tt.want)
 		}
