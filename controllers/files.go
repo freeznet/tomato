@@ -86,7 +86,7 @@ func (f *FilesController) HandleCreate() {
 			f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
 		}
 		contentType = h.Header.Get("Content-Type")
-		result := files.CreateFile(filename, data, contentType, f.Auth.User, f.Auth)
+		result := files.CreateFile(filename, data, contentType, f.Auth.User, f.Auth.Info)
 		if result != nil && result["url"] != "" {
 			f.Ctx.Output.SetStatus(201)
 			f.Ctx.Output.Header("location", result["url"].(string))
@@ -96,7 +96,7 @@ func (f *FilesController) HandleCreate() {
 			f.HandleError(errs.E(errs.FileSaveError, "Could not store file."), 0)
 		}
 	} else {
-		result := files.CreateFile(filename, data, contentType, f.Auth.User, f.Auth)
+		result := files.CreateFile(filename, data, contentType, f.Auth.User, f.Auth.Info)
 		if result != nil && result["url"] != "" {
 			f.Ctx.Output.SetStatus(201)
 			f.Ctx.Output.Header("location", result["url"].(string))
