@@ -5,11 +5,12 @@ import (
 	"github.com/freeznet/tomato/types"
 )
 
-func getRequest(triggerType string, orifilename string, data []byte, contentType string, filename string, location string, user types.M) cloud.TriggerRequest {
+func getRequest(triggerType string, orifilename string, data []byte, contentType string, filename string, location string, user types.M, info *types.RequestInfo) cloud.TriggerRequest {
 	request := cloud.TriggerRequest{
 		TriggerName: triggerType,
 		Object:      nil,
 		Master:      false,
+		Headers:	 info.Headers,
 	}
 
 	if filename != "" {
@@ -42,7 +43,7 @@ func getResponse(request cloud.TriggerRequest) *cloud.TriggerResponse {
 }
 
 
-func maybeRunTrigger(triggerType string, className string, orifilename string, data []byte, contentType string, user types.M) (types.M, error) {
+func maybeRunTrigger(triggerType string, className string, orifilename string, data []byte, contentType string, user types.M, info *types.RequestInfo) (types.M, error) {
 	if data == nil {
 		return types.M{}, nil
 	}
@@ -51,13 +52,13 @@ func maybeRunTrigger(triggerType string, className string, orifilename string, d
 	if trigger == nil {
 		return types.M{}, nil
 	}
-	request := getRequest(triggerType, orifilename, data, contentType, "", "", user)
+	request := getRequest(triggerType, orifilename, data, contentType, "", "", user, info)
 	response := getResponse(request)
 	trigger(request, response)
 	return response.Response, response.Err
 }
 
-func maybeRunAfterTrigger(triggerType string, className, orifilename, filename, location string) (types.M, error) {
+func maybeRunAfterTrigger(triggerType string, className, orifilename, filename, location string, info *types.RequestInfo) (types.M, error) {
 	if filename == "" {
 		return types.M{}, nil
 	}
@@ -66,7 +67,7 @@ func maybeRunAfterTrigger(triggerType string, className, orifilename, filename, 
 	if trigger == nil {
 		return types.M{}, nil
 	}
-	request := getRequest(triggerType, orifilename, nil, "", filename, location, types.M{})
+	request := getRequest(triggerType, orifilename, nil, "", filename, location, types.M{}, info)
 	response := getResponse(request)
 	trigger(request, response)
 	return response.Response, response.Err

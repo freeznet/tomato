@@ -18,20 +18,30 @@ type Auth struct {
 	UserRoles      []string
 	FetchedRoles   bool
 	RolePromise    []string
+	Info		   *types.RequestInfo
 }
 
 // Master 生成 Master 级别用户
-func Master() *Auth {
+func Master(info ...*types.RequestInfo) *Auth {
+	if info != nil {
+		return &Auth{IsMaster: true, IsReadOnly: false, Info: info[0]}
+	}
 	return &Auth{IsMaster: true, IsReadOnly: false}
 }
 
 // ReadOnly 生成 Master 级别的只读用户
-func ReadOnly() *Auth {
+func ReadOnly(info ...*types.RequestInfo) *Auth {
+	if info != nil {
+		return &Auth{IsMaster: true, IsReadOnly: false, Info: info[0]}
+	}
 	return &Auth{IsMaster: true, IsReadOnly: true}
 }
 
 // Nobody 生成空用户
-func Nobody() *Auth {
+func Nobody(info ...*types.RequestInfo) *Auth {
+	if info != nil {
+		return &Auth{IsMaster: true, IsReadOnly: false, Info: info[0]}
+	}
 	return &Auth{IsMaster: false, IsReadOnly: false}
 }
 
