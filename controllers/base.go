@@ -176,12 +176,12 @@ func (b *BaseController) Prepare() {
 		return
 	}
 	if info.MasterKey == config.TConfig.MasterKey {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: false }
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: false, Info: info }
 		return
 	}
 
 	if config.TConfig.ReadOnlyMasterKey != "" && info.MasterKey == config.TConfig.ReadOnlyMasterKey {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: true }
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: true, Info: info }
 		return
 	}
 
@@ -203,16 +203,16 @@ func (b *BaseController) Prepare() {
 	}
 	// 生成当前会话用户权限信息
 	if info.SessionToken == "" {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: false}
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: false, Info: info}
 		return
 	}
 	var auth *rest.Auth
 	var err error
 	if (url == "/v1/upgradeToRevocableSession" || url == "/v1/upgradeToRevocableSession/") &&
 		strings.Index(info.SessionToken, "r:") != 0 {
-		auth, err = rest.GetAuthForLegacySessionToken(info.SessionToken, info.InstallationID)
+		auth, err = rest.GetAuthForLegacySessionToken(info.SessionToken, info.InstallationID, info)
 	} else {
-		auth, err = rest.GetAuthForSessionToken(info.SessionToken, info.InstallationID)
+		auth, err = rest.GetAuthForSessionToken(info.SessionToken, info.InstallationID, info)
 	}
 	if err != nil {
 		b.HandleError(err, 0)
