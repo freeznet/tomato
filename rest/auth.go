@@ -32,7 +32,7 @@ func Master(info ...*types.RequestInfo) *Auth {
 // ReadOnly 生成 Master 级别的只读用户
 func ReadOnly(info ...*types.RequestInfo) *Auth {
 	if info != nil {
-		return &Auth{IsMaster: true, IsReadOnly: false, Info: info[0]}
+		return &Auth{IsMaster: true, IsReadOnly: true, Info: info[0]}
 	}
 	return &Auth{IsMaster: true, IsReadOnly: true}
 }
@@ -40,7 +40,7 @@ func ReadOnly(info ...*types.RequestInfo) *Auth {
 // Nobody 生成空用户
 func Nobody(info ...*types.RequestInfo) *Auth {
 	if info != nil {
-		return &Auth{IsMaster: true, IsReadOnly: false, Info: info[0]}
+		return &Auth{IsMaster: false, IsReadOnly: false, Info: info[0]}
 	}
 	return &Auth{IsMaster: false, IsReadOnly: false}
 }
