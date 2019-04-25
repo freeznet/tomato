@@ -18,25 +18,35 @@ type Auth struct {
 	UserRoles      []string
 	FetchedRoles   bool
 	RolePromise    []string
+	Info		   *types.RequestInfo
 }
 
 // Master 生成 Master 级别用户
-func Master() *Auth {
+func Master(info ...*types.RequestInfo) *Auth {
+	if info != nil {
+		return &Auth{IsMaster: true, IsReadOnly: false, Info: info[0]}
+	}
 	return &Auth{IsMaster: true, IsReadOnly: false}
 }
 
 // ReadOnly 生成 Master 级别的只读用户
-func ReadOnly() *Auth {
+func ReadOnly(info ...*types.RequestInfo) *Auth {
+	if info != nil {
+		return &Auth{IsMaster: true, IsReadOnly: true, Info: info[0]}
+	}
 	return &Auth{IsMaster: true, IsReadOnly: true}
 }
 
 // Nobody 生成空用户
-func Nobody() *Auth {
+func Nobody(info ...*types.RequestInfo) *Auth {
+	if info != nil {
+		return &Auth{IsMaster: false, IsReadOnly: false, Info: info[0]}
+	}
 	return &Auth{IsMaster: false, IsReadOnly: false}
 }
 
 // GetAuthForSessionToken 返回 sessionToken 对应的用户权限信息
-func GetAuthForSessionToken(sessionToken string, installationID string) (*Auth, error) {
+func GetAuthForSessionToken(sessionToken string, installationID string, info *types.RequestInfo) (*Auth, error) {
 	// 从缓存获取用户信息
 	cachedUser := cache.User.Get(sessionToken)
 	if u := utils.M(cachedUser); u != nil {
@@ -57,7 +67,7 @@ func GetAuthForSessionToken(sessionToken string, installationID string) (*Auth, 
 	}
 
 	sessionErr := errs.E(errs.InvalidSessionToken, "invalid session token")
-	query, err := NewQuery(Master(), "_Session", restWhere, restOptions, nil)
+	query, err := NewQuery(Master(info), "_Session", restWhere, restOptions, nil)
 	if err != nil {
 		return nil, sessionErr
 	}
@@ -109,9 +119,9 @@ func GetAuthForSessionToken(sessionToken string, installationID string) (*Auth, 
 
 // GetAuthForLegacySessionToken 处理保存在 _User 中的 sessionToken。
 // 该方法处理从 parse 中迁移过来的用户数据，在 tomato 中其实不需要处理这种类型的数据，以后考虑删除
-func GetAuthForLegacySessionToken(sessionToken, installationID string) (*Auth, error) {
+func GetAuthForLegacySessionToken(sessionToken, installationID string, info *types.RequestInfo) (*Auth, error) {
 	restOptions := types.M{"limit": 1}
-	query, err := NewQuery(Master(), "_User", types.M{"sessionToken": sessionToken}, restOptions, nil)
+	query, err := NewQuery(Master(info), "_User", types.M{"sessionToken": sessionToken}, restOptions, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +195,7 @@ func (a *Auth) loadRoles() []string {
 	}
 	// 取出当前用户直接对应的所有角色
 	// TODO 处理错误，处理结果大于100的情况
-	query, err := NewQuery(Master(), "_Role", restWhere, types.M{}, nil)
+	query, err := NewQuery(Master(a.Info), "_Role", restWhere, types.M{}, nil)
 	if err != nil {
 		a.UserRoles = []string{}
 		a.FetchedRoles = true
@@ -264,7 +274,7 @@ func (a *Auth) getAllRolesNamesForRoleIds(roleIDs, names []string, queriedRoles 
 		restWhere["roles"] = types.M{"$in": ins}
 	}
 
-	query, err := NewQuery(Master(), "_Role", restWhere, types.M{}, nil)
+	query, err := NewQuery(Master(a.Info), "_Role", restWhere, types.M{}, nil)
 	if err != nil {
 		return names
 	}

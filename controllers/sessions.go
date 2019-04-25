@@ -65,7 +65,7 @@ func (s *SessionsController) HandleGetMe() {
 	where := types.M{
 		"sessionToken": s.Info.SessionToken,
 	}
-	response, err := rest.Find(rest.Master(), "_Session", where, types.M{}, s.Info.ClientSDK)
+	response, err := rest.Find(rest.Master(s.Info), "_Session", where, types.M{}, s.Info.ClientSDK)
 	if err != nil {
 		s.HandleError(err, 0)
 		return
@@ -94,7 +94,7 @@ func (s *SessionsController) HandleUpdateMe() {
 	where := types.M{
 		"sessionToken": s.Info.SessionToken,
 	}
-	response, err := rest.Find(rest.Master(), "_Session", where, types.M{}, s.Info.ClientSDK)
+	response, err := rest.Find(rest.Master(s.Info), "_Session", where, types.M{}, s.Info.ClientSDK)
 	if err != nil {
 		s.HandleError(err, 0)
 		return
@@ -106,7 +106,7 @@ func (s *SessionsController) HandleUpdateMe() {
 	results := utils.A(response["results"])
 	session := utils.M(results[0])
 	update := types.M{"installationId": s.Info.InstallationID}
-	result, err := rest.Update(rest.Master(), "_Session", utils.S(session["objectId"]), update, nil)
+	result, err := rest.Update(rest.Master(s.Info), "_Session", utils.S(session["objectId"]), update, nil)
 	if err != nil {
 		s.HandleError(err, 0)
 		return

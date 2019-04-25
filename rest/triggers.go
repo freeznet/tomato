@@ -11,6 +11,7 @@ func getRequest(triggerType string, auth *Auth, parseObject, originalParseObject
 		TriggerName: triggerType,
 		Object:      parseObject,
 		Master:      false,
+		Headers: 	 auth.Info.Headers,
 	}
 
 	if originalParseObject != nil {
@@ -45,6 +46,7 @@ func getRequestQuery(triggerType string, auth *Auth, query types.M, count bool, 
 		Count:       count,
 		Master:      false,
 		IsGet:       isGet,
+		Headers: 	 auth.Info.Headers,
 	}
 
 	if auth == nil {

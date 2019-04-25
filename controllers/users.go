@@ -78,7 +78,7 @@ func (u *UsersController) HandleMe() {
 	option := types.M{
 		"include": "user",
 	}
-	response, err := rest.Find(rest.Master(), "_Session", where, option, u.Info.ClientSDK)
+	response, err := rest.Find(rest.Master(u.Info), "_Session", where, option, u.Info.ClientSDK)
 
 	if err != nil {
 		u.HandleError(err, 0)

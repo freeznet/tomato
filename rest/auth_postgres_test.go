@@ -27,7 +27,7 @@ func TestPostgres_GetAuthForSessionToken(t *testing.T) {
 	initPostgresEnv()
 	sessionToken = "abc"
 	installationID = "111"
-	_, err = GetAuthForSessionToken(sessionToken, installationID)
+	_, err = GetAuthForSessionToken(sessionToken, installationID, nil)
 	expectErr = errs.E(errs.InvalidSessionToken, "invalid session token")
 	if err == nil || reflect.DeepEqual(expectErr, err) == false {
 		t.Error("expect:", expectErr, "result:", err)
@@ -73,7 +73,7 @@ func TestPostgres_GetAuthForSessionToken(t *testing.T) {
 	orm.Adapter.CreateObject(className, schema, object)
 	sessionToken = "abc"
 	installationID = "111"
-	_, err = GetAuthForSessionToken(sessionToken, installationID)
+	_, err = GetAuthForSessionToken(sessionToken, installationID, nil)
 	expectErr = errs.E(errs.InvalidSessionToken, "invalid session token")
 	if err == nil || reflect.DeepEqual(expectErr, err) == false {
 		t.Error("expect:", expectErr, "result:", err)
@@ -119,7 +119,7 @@ func TestPostgres_GetAuthForSessionToken(t *testing.T) {
 	orm.Adapter.CreateObject(className, schema, object)
 	sessionToken = "abc1001"
 	installationID = "111"
-	_, err = GetAuthForSessionToken(sessionToken, installationID)
+	_, err = GetAuthForSessionToken(sessionToken, installationID, nil)
 	expectErr = errs.E(errs.InvalidSessionToken, "Session token is expired.")
 	if err == nil || reflect.DeepEqual(expectErr, err) == false {
 		t.Error("expect:", expectErr, "result:", err)
@@ -166,7 +166,7 @@ func TestPostgres_GetAuthForSessionToken(t *testing.T) {
 	orm.Adapter.CreateObject(className, schema, object)
 	sessionToken = "abc1001"
 	installationID = "111"
-	_, err = GetAuthForSessionToken(sessionToken, installationID)
+	_, err = GetAuthForSessionToken(sessionToken, installationID, nil)
 	expectErr = errs.E(errs.InvalidSessionToken, "Session token is expired.")
 	if err == nil || reflect.DeepEqual(expectErr, err) == false {
 		t.Error("expect:", expectErr, "result:", err)
@@ -213,7 +213,7 @@ func TestPostgres_GetAuthForSessionToken(t *testing.T) {
 	orm.Adapter.CreateObject(className, schema, object)
 	sessionToken = "abc1001"
 	installationID = "111"
-	result, err = GetAuthForSessionToken(sessionToken, installationID)
+	result, err = GetAuthForSessionToken(sessionToken, installationID, nil)
 	expect = &Auth{
 		IsMaster:       false,
 		InstallationID: "111",
