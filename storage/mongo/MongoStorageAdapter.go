@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -421,6 +422,19 @@ func (m *MongoAdapter) CreateIndex(className string, indexRequest []string) erro
 	}
 	err := coll.collection.EnsureIndex(index)
 	return err
+}
+
+func (m *MongoAdapter) CreateIndexsIfNeeded(className, fieldName string, fieldType types.M) error {
+	if fieldType != nil && fieldType["type"] == "Polygon" {
+		index := []string{fmt.Sprintf("$2dsphere:%s", fieldName)}
+		return m.CreateIndex(className, index)
+	}
+	return nil
+}
+
+func (m *MongoAdapter) GetIndexs(className string) (indexes []mgo.Index, err error) {
+	coll := m.adaptiveCollection(className)
+	return coll.collection.Indexes()
 }
 
 // HandleShutdown 关闭数据库

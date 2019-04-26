@@ -1697,6 +1697,31 @@ func (g geoPointCoder) isValidJSON(value types.M) bool {
 	return value != nil && utils.S(value["__type"]) == "GeoPoint" && value["longitude"] != nil && value["latitude"] != nil
 }
 
+// polygonCoder Polygon 类型处理
+type polygonCoder struct {}
+
+func (p polygonCoder) databaseToJSON(object interface{}) types.M {
+	return types.M{
+		"__type": "Polygon",
+		"coordinates": utils.A(utils.M(object)["coordinates"])[0],
+	}
+}
+
+func (p polygonCoder) isValidDatabaseObject(object interface{}) bool {
+	coords := utils.A(utils.M(object)["coordinates"])[0]
+	_, ok := coords.(types.S)
+	if utils.M(object)["type"] != "Polygon" || !ok {
+		return false
+	}
+	for _, value := range utils.A(coords) {
+		g := geoPointCoder{}
+		if !g.isValidDatabaseObject(value) {
+			return false
+		}
+	}
+	return true
+}
+
 // fileCoder File 类型处理
 type fileCoder struct{}
 
