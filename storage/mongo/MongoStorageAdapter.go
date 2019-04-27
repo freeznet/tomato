@@ -425,7 +425,7 @@ func (m *MongoAdapter) CreateIndex(className string, indexRequest []string) erro
 }
 
 func (m *MongoAdapter) CreateIndexsIfNeeded(className, fieldName string, fieldType types.M) error {
-	if fieldType != nil && fieldType["type"] == "Polygon" {
+	if fieldType != nil && utils.S(fieldType["type"]) == "Polygon" {
 		index := []string{fmt.Sprintf("$2dsphere:%s", fieldName)}
 		return m.CreateIndex(className, index)
 	}

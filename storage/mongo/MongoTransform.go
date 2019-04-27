@@ -1755,12 +1755,12 @@ func (p polygonCoder) isValidDatabaseObject(object interface{}) bool {
 	if utils.M(object)["type"] != "Polygon" || !ok {
 		return false
 	}
-	for _, value := range utils.A(coords) {
+	for _, point := range utils.A(coords) {
 		g := geoPointCoder{}
-		if !g.isValidDatabaseObject(value) {
+		if !g.isValidDatabaseObject(point) {
 			return false
 		}
-		_, err := g.jsonToDatabase(utils.M(value))
+		err := utils.ValidatePolygonPoint(utils.A(point)[0], utils.A(point)[1])
 		if err != nil {
 			return false
 		}
@@ -1773,14 +1773,14 @@ func (p polygonCoder) jsonToDatabase(json types.M) (interface{}, error) {
 	if utils.A(coords[0])[0] != utils.A(coords[len(coords) - 1])[0] || utils.A(coords[0])[1] != utils.A(coords[len(coords) - 1])[1]{
 		coords = append(coords, coords[0])
 	}
-	unique := [][]int{}
+	unique := [][]float64{}
 	for _, item := range coords {
 		if unique == nil {
-			unique = append(unique, item.([]int))
+			unique = append(unique, item.([]float64))
 		} else {
 			for _, uniqueItem := range unique {
 				if uniqueItem[0] != utils.A(item)[0] || uniqueItem[1] != utils.A(item)[1] {
-					unique = append(unique, item.([]int))
+					unique = append(unique, item.([]float64))
 				}
 			}
 		}
