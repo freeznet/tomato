@@ -1760,7 +1760,7 @@ func (p polygonCoder) isValidDatabaseObject(object interface{}) bool {
 		if !g.isValidDatabaseObject(point) {
 			return false
 		}
-		err := utils.ValidatePolygonPoint(utils.A(point)[0], utils.A(point)[1])
+		err := utils.ValidatePolygonPoint(utils.A(point)[1], utils.A(point)[0])
 		if err != nil {
 			return false
 		}

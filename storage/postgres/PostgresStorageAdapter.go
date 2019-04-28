@@ -2676,7 +2676,11 @@ func convertPolygonToSQL(polygon types.S) (string, error) {
 	}
 	points := []string{}
 	for _, point := range polygon {
-		points = append(points, fmt.Sprintf("(%v, %v)", utils.A(point)[0], utils.A(point)[1]))
+		err := utils.ValidatePolygonPoint(utils.A(point)[1], utils.A(point)[0])
+		if err != nil {
+			return "", err
+		}
+		points = append(points, fmt.Sprintf("(%v, %v)", utils.A(point)[1], utils.A(point)[0]))
 	}
 
 	return fmt.Sprintf("(%v)", strings.Join(points, ",")), nil
