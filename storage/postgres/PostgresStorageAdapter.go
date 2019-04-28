@@ -589,6 +589,12 @@ func (p *PostgresAdapter) CreateObject(className string, schema, object types.M)
 			valuesArray = append(valuesArray, b)
 		case "String", "Number", "Boolean", "Bytes":
 			valuesArray = append(valuesArray, object[fieldName])
+		case "Polygon":
+			value, err := convertPolygonToSQL(utils.A(utils.M(object[fieldName])["coordinates"]))
+			if err != nil {
+				return err
+			}
+			valuesArray = append(valuesArray, value)
 		case "File":
 			if v := utils.M(object[fieldName]); v != nil && utils.S(v["name"]) != "" {
 				valuesArray = append(valuesArray, v["name"])
@@ -1481,6 +1487,15 @@ func (p *PostgresAdapter) FindOneAndUpdate(className string, schema, query, upda
 				values = append(values, object["longitude"], object["latitude"])
 				index = index + 2
 				continue
+			case "Polygon":
+				value, err := convertPolygonToSQL(utils.A(object["coordinates"]))
+				if err != nil {
+					return nil, err
+				}
+				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+				values = append(values, value)
+				index = index + 1
+				continue
 			case "Relation":
 				continue
 			}
@@ -1818,7 +1833,19 @@ func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
 				"longitude": longitude,
 				"latitude":  latitude,
 			}
-		} else if objectType == "File" && object[fieldName] != nil {
+		}  else if objectType == "Polygon" && object[fieldName] != nil {
+			coords := object[fieldName]
+			coordsLen := len(coords.(string)) - 3
+			coordsArr := strings.Split(string([]rune(coords.(string))[2:coordsLen]),"),(")
+			points := types.S{}
+			for _, v := range coordsArr {
+				points = append(points, types.S{strings.Split(v, ",")[1], strings.Split(v, ",")[0]})
+			}
+			object[fieldName] = types.M{
+				"__type": "Polygon",
+				"coordinates": points,
+			}
+		}else if objectType == "File" && object[fieldName] != nil {
 			if v, ok := object[fieldName].([]byte); ok {
 				object[fieldName] = types.M{
 					"__type": "File",
@@ -2542,6 +2569,22 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 				}
 			}
 
+			if geoIntersects := utils.M(value["$geoIntersects "]); geoIntersects != nil {
+				if point := utils.M(geoIntersects["$point"]); point != nil {
+					if utils.S(point["__type"]) != "Polygon" {
+						return nil, errs.E(errs.InvalidJSON, "bad $geoIntersect value; $point should be GeoPoint")
+					} else {
+						err := utils.ValidatePolygonPoint(point["latitude"], point["longitude"])
+						if err != nil {
+							return nil, err
+						}
+					}
+					patterns = append(patterns, fmt.Sprintf("$%s:name::polygon @> $%d::point", fieldName, index))
+					values = append(values, fmt.Sprintf("(%d, %d)"), point["longitude"], point["latitude"])
+					index += 1
+				}
+			}
+
 			if regex := utils.S(value["$regex"]); regex != "" {
 				operator := "~"
 				opts := utils.S(value["$options"])
@@ -2579,6 +2622,16 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 				index = index + 1
 			}
 
+			if utils.S(value["__type"]) == "Polygon" {
+				pointsValue, err := convertPolygonToSQL(utils.A(value["coordinates"]))
+				if err != nil {
+					return nil, err
+				}
+				patterns = append(patterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+				values = append(values, pointsValue)
+				index = index + 1
+			}
+
 			for cmp, pgComparator := range parseToPosgresComparator {
 				if v, ok := value[cmp]; ok {
 					patterns = append(patterns, fmt.Sprintf(`"%s" %s $%d`, fieldName, pgComparator, index))
@@ -2597,6 +2650,36 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 		values[i] = transformValue(v)
 	}
 	return &whereClause{strings.Join(patterns, " AND "), values, sorts}, nil
+}
+
+func convertPolygonToSQL(polygon types.S) (string, error) {
+	if len(polygon) < 3 {
+		return "", errs.E(errs.InvalidJSON, "Polygon must have at least 3 values")
+	}
+	if utils.A(polygon[0])[0] != utils.A(polygon[len(polygon) - 1])[0] || utils.A(polygon[0])[1] != utils.A(polygon[len(polygon) - 1])[1]{
+		polygon = append(polygon, polygon[0])
+	}
+	unique := [][]float64{}
+	for _, item := range polygon {
+		if unique == nil {
+			unique = append(unique, item.([]float64))
+		} else {
+			for _, uniqueItem := range unique {
+				if uniqueItem[0] != utils.A(item)[0] || uniqueItem[1] != utils.A(item)[1] {
+					unique = append(unique, item.([]float64))
+				}
+			}
+		}
+	}
+	if len(unique) < 3 {
+		return "", errs.E(errs.InternalServerError, "GeoJSON: Loop must have at least 3 different vertices")
+	}
+	points := []string{}
+	for _, point := range polygon {
+		points = append(points, fmt.Sprintf("(%v, %v)", utils.A(point)[0], utils.A(point)[1]))
+	}
+
+	return fmt.Sprintf("(%v)", strings.Join(points, ",")), nil
 }
 
 func removeWhiteSpace(s string) string {
