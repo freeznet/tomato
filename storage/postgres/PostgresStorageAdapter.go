@@ -2569,7 +2569,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 				}
 			}
 
-			if geoIntersects := utils.M(value["$geoIntersects "]); geoIntersects != nil {
+			if geoIntersects := utils.M(value["$geoIntersects"]); geoIntersects != nil {
 				if point := utils.M(geoIntersects["$point"]); point != nil {
 					if utils.S(point["__type"]) != "Polygon" {
 						return nil, errs.E(errs.InvalidJSON, "bad $geoIntersect value; $point should be GeoPoint")
@@ -2579,8 +2579,8 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 							return nil, err
 						}
 					}
-					patterns = append(patterns, fmt.Sprintf("$%s:name::polygon @> $%d::point", fieldName, index))
-					values = append(values, fmt.Sprintf("(%d, %d)"), point["longitude"], point["latitude"])
+					patterns = append(patterns, fmt.Sprintf(`"%s"::polygon @> $%d::point`, fieldName, index))
+					values = append(values, fmt.Sprintf("(%v, %v)", point["longitude"], point["latitude"]))
 					index += 1
 				}
 			}
