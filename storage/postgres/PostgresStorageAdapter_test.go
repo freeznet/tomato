@@ -1363,13 +1363,15 @@ func Test_buildWhereClause(t *testing.T) {
 			name: "27.2",
 			args: args{
 				schema: types.M{
-					"fields": types.M{},
+					"fields": types.M{
+						"key": types.M{"type": "Object"},
+					},
 				},
 				query: types.M{
 					"key": types.M{
 						"$geoIntersects": types.M{
 							"$point": types.M{
-								"__type":    "Polygon",
+								"__type":    "GeoPoint",
 								"longitude": 10.0,
 								"latitude":  20.0,
 							},
@@ -3137,6 +3139,40 @@ func TestPostgresAdapter_Find(t *testing.T) {
 		initialize func(className string, schema types.M, objects []types.M)
 		clean      func(className string)
 	}{
+		{
+			name: "1-1-1",
+			args: args{
+				className: "post",
+				schema: types.M{
+					"className": "post",
+					"fields": types.M{
+						"key": types.M{"type": "Polygon"},
+					},
+				},
+				query: types.M{
+					"key": types.M{
+						"$geoIntersects": types.M{
+							"$point": types.M{
+								"__type":    "GeoPoint",
+								"longitude": 10,
+								"latitude":  10,
+							},
+						},
+					},
+				},
+				options: types.M{},
+				dataObjects: []types.M{
+					types.M{"key": types.M{"__type": "Polygon", "coordinates": types.S{types.S{0, 0}, types.S{0, 1}, types.S{1, 1},types.S{1, 0}}}},
+					types.M{"key": types.M{"__type": "Polygon", "coordinates": types.S{types.S{10, 10}, types.S{10, 15}, types.S{15, 15},types.S{15, 10}, types.S{10, 10}}}},
+				},
+			},
+			want: []types.M{
+				types.M{"key": types.M{"__type": "Polygon", "coordinates": types.S{types.S{10, 10}, types.S{10, 15}, types.S{15, 15},types.S{15, 10}, types.S{10, 10}}}},
+			},
+			wantErr: nil,
+			initialize: initialize,
+			clean: clean,
+		},
 		{
 			name: "1",
 			args: args{

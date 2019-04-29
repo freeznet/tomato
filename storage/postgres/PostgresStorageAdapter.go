@@ -1834,9 +1834,15 @@ func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
 				"latitude":  latitude,
 			}
 		}  else if objectType == "Polygon" && object[fieldName] != nil {
-			coords := object[fieldName]
-			coordsLen := len(coords.(string)) - 3
-			coordsArr := strings.Split(string([]rune(coords.(string))[2:coordsLen]),"),(")
+			coords := ""
+			if v, ok := object[fieldName].([]byte); ok {
+				coords = string(v)
+			} else if v, ok := object[fieldName].(string); ok {
+				coords = v
+			}
+
+			coordsLen := len(coords) - 2
+			coordsArr := strings.Split(string([]rune(coords)[2:coordsLen]),"),(")
 			points := types.S{}
 			for _, v := range coordsArr {
 				points = append(points, types.S{strings.Split(v, ",")[1], strings.Split(v, ",")[0]})
@@ -2030,6 +2036,8 @@ func parseTypeToPostgresType(t types.M) (string, error) {
 		return "double precision", nil
 	case "GeoPoint":
 		return "point", nil
+	case "Polygon":
+		return "polygon", nil
 	case "Bytes":
 		return "jsonb", nil
 	case "Array":
@@ -2571,7 +2579,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 
 			if geoIntersects := utils.M(value["$geoIntersects"]); geoIntersects != nil {
 				if point := utils.M(geoIntersects["$point"]); point != nil {
-					if utils.S(point["__type"]) != "Polygon" {
+					if utils.S(point["__type"]) != "GeoPoint" {
 						return nil, errs.E(errs.InvalidJSON, "bad $geoIntersect value; $point should be GeoPoint")
 					} else {
 						err := utils.ValidatePolygonPoint(point["latitude"], point["longitude"])
@@ -2659,21 +2667,25 @@ func convertPolygonToSQL(polygon types.S) (string, error) {
 	if utils.A(polygon[0])[0] != utils.A(polygon[len(polygon) - 1])[0] || utils.A(polygon[0])[1] != utils.A(polygon[len(polygon) - 1])[1]{
 		polygon = append(polygon, polygon[0])
 	}
-	unique := [][]float64{}
-	for _, item := range polygon {
-		if unique == nil {
-			unique = append(unique, item.([]float64))
-		} else {
-			for _, uniqueItem := range unique {
-				if uniqueItem[0] != utils.A(item)[0] || uniqueItem[1] != utils.A(item)[1] {
-					unique = append(unique, item.([]float64))
-				}
+
+	var unique []types.S
+	for _, polygonItem := range polygon {
+		flag := true
+		for _, uniqueItem := range unique {
+			if utils.A(polygonItem)[0] == utils.A(uniqueItem)[0] && utils.A(polygonItem)[1] == utils.A(uniqueItem)[1] {
+				flag = false
+				break
 			}
 		}
+		if flag {
+			unique = append(unique, utils.A(polygonItem))
+		}
 	}
+
 	if len(unique) < 3 {
 		return "", errs.E(errs.InternalServerError, "GeoJSON: Loop must have at least 3 different vertices")
 	}
+
 	points := []string{}
 	for _, point := range polygon {
 		err := utils.ValidatePolygonPoint(utils.A(point)[1], utils.A(point)[0])

@@ -1773,16 +1773,17 @@ func (p polygonCoder) jsonToDatabase(json types.M) (interface{}, error) {
 	if utils.A(coords[0])[0] != utils.A(coords[len(coords) - 1])[0] || utils.A(coords[0])[1] != utils.A(coords[len(coords) - 1])[1]{
 		coords = append(coords, coords[0])
 	}
-	unique := [][]float64{}
-	for _, item := range coords {
-		if unique == nil {
-			unique = append(unique, item.([]float64))
-		} else {
-			for _, uniqueItem := range unique {
-				if uniqueItem[0] != utils.A(item)[0] || uniqueItem[1] != utils.A(item)[1] {
-					unique = append(unique, item.([]float64))
-				}
+	var unique []types.S
+	for _, polygonItem := range coords {
+		flag := true
+		for _, uniqueItem := range unique {
+			if utils.A(polygonItem)[0] == utils.A(uniqueItem)[0] && utils.A(polygonItem)[1] == utils.A(uniqueItem)[1] {
+				flag = false
+				break
 			}
+		}
+		if flag {
+			unique = append(unique, utils.A(polygonItem))
 		}
 	}
 	if len(unique) < 3 {
