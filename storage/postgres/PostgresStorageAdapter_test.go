@@ -3140,7 +3140,7 @@ func TestPostgresAdapter_Find(t *testing.T) {
 		clean      func(className string)
 	}{
 		{
-			name: "1-1-1",
+			name: "1.1",
 			args: args{
 				className: "post",
 				schema: types.M{
@@ -3163,6 +3163,7 @@ func TestPostgresAdapter_Find(t *testing.T) {
 				options: types.M{},
 				dataObjects: []types.M{
 					types.M{"key": types.M{"__type": "Polygon", "coordinates": types.S{types.S{0, 0}, types.S{0, 1}, types.S{1, 1},types.S{1, 0}}}},
+					types.M{"key": types.M{"__type": "Polygon", "coordinates": types.S{types.S{0, 0}, types.S{0, 2}, types.S{2, 2},types.S{2, 0}}}},
 					types.M{"key": types.M{"__type": "Polygon", "coordinates": types.S{types.S{10, 10}, types.S{10, 15}, types.S{15, 15},types.S{15, 10}, types.S{10, 10}}}},
 				},
 			},

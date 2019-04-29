@@ -133,7 +133,7 @@ func ValidatePolygonPoint(latitude, longitude interface{}) error {
 			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' < -90.0.", i))
 		}
 		if i > 90 {
-			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' > -90.0.", i))
+			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' > 90.0.", i))
 		}
 	}else if s, ok := latitude.(string); ok {
 		f, err := strconv.ParseFloat(s, 64)
@@ -150,7 +150,7 @@ func ValidatePolygonPoint(latitude, longitude interface{}) error {
 		longitudeTemp = longitude.(float64)
 	} else if i, ok := longitude.(int); ok {
 		if i < -180 {
-			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' < 180.0.", i))
+			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' < -180.0.", i))
 		}
 		if i > 180 {
 			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' > 180.0.", i))
@@ -170,10 +170,10 @@ func ValidatePolygonPoint(latitude, longitude interface{}) error {
 		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' < -90.0.", latitudeTemp))
 	}
 	if latitudeTemp > 90.0 {
-		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' > -90.0.", latitudeTemp))
+		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' > 90.0.", latitudeTemp))
 	}
 	if longitudeTemp < -180.0 {
-		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' < 180.0.", longitudeTemp))
+		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' < -180.0.", longitudeTemp))
 	}
 	if longitudeTemp > 180.0 {
 		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' > 180.0.", longitudeTemp))
