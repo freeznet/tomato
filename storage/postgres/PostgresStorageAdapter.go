@@ -1845,7 +1845,8 @@ func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
 			coordsArr := strings.Split(string([]rune(coords)[2:coordsLen]),"),(")
 			points := types.S{}
 			for _, v := range coordsArr {
-				points = append(points, types.S{strings.Split(v, ",")[1], strings.Split(v, ",")[0]})
+				temp := strings.Split(v, ",")
+				points = append(points, types.S{temp[1], temp[0]})
 			}
 			object[fieldName] = types.M{
 				"__type": "Polygon",
