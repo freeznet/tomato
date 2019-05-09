@@ -58,7 +58,7 @@ func NewWrite(
 		data = types.M{}
 	}
 	// 当为 create 请求时，写入数据中不应该包含 objectId
-	if query == nil && data["objectId"] != nil {
+	if query == nil && data["objectId"] != nil && !auth.IsMaster {
 		return nil, errs.E(errs.InvalidKeyName, "objectId is an invalid field name.")
 	}
 	var queryCopy types.M

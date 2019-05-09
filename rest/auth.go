@@ -26,7 +26,7 @@ func Master(info ...*types.RequestInfo) *Auth {
 	if info != nil {
 		return &Auth{IsMaster: true, IsReadOnly: false, Info: info[0]}
 	}
-	return &Auth{IsMaster: true, IsReadOnly: false}
+	return &Auth{IsMaster: true, IsReadOnly: false, Info: &types.RequestInfo{}}
 }
 
 // ReadOnly 生成 Master 级别的只读用户
@@ -34,7 +34,7 @@ func ReadOnly(info ...*types.RequestInfo) *Auth {
 	if info != nil {
 		return &Auth{IsMaster: true, IsReadOnly: true, Info: info[0]}
 	}
-	return &Auth{IsMaster: true, IsReadOnly: true}
+	return &Auth{IsMaster: true, IsReadOnly: true, Info: &types.RequestInfo{}}
 }
 
 // Nobody 生成空用户
@@ -42,7 +42,7 @@ func Nobody(info ...*types.RequestInfo) *Auth {
 	if info != nil {
 		return &Auth{IsMaster: false, IsReadOnly: false, Info: info[0]}
 	}
-	return &Auth{IsMaster: false, IsReadOnly: false}
+	return &Auth{IsMaster: false, IsReadOnly: false, Info: &types.RequestInfo{}}
 }
 
 // GetAuthForSessionToken 返回 sessionToken 对应的用户权限信息
