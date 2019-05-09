@@ -1689,9 +1689,14 @@ func (p *PostgresAdapter) PerformInitialization(options types.M) error {
 		options = types.M{}
 	}
 
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+
 	if volatileClassesSchemas, ok := options["VolatileClassesSchemas"].([]types.M); ok {
 		for _, schema := range volatileClassesSchemas {
-			err := p.createTable(utils.S(schema["className"]), schema, nil)
+			err := p.createTable(utils.S(schema["className"]), schema, tx)
 			if err != nil {
 				if e, ok := err.(*pq.Error); ok {
 					if e.Code != postgresDuplicateRelationError {
@@ -1706,11 +1711,6 @@ func (p *PostgresAdapter) PerformInitialization(options types.M) error {
 				}
 			}
 		}
-	}
-
-	tx, err := p.db.Begin()
-	if err != nil {
-		return err
 	}
 
 	_, err = tx.Exec(jsonObjectSetKey)
