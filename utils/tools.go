@@ -120,6 +120,10 @@ func StringInSlice(a string, list []string) bool {
 	return false
 }
 
+func GetPointer(className, objectId string) types.M {
+	return types.M{"__type": "Pointer", "className": className, "objectId": objectId}
+}
+
 /*
 * Throws an exception if the given lat-long is out of bounds.
 */
