@@ -140,7 +140,7 @@ func (l *LoginController) HandleLogIn() {
 		sessionData["installationId"] = l.Info.InstallationID
 	}
 	// 为新登录用户创建 sessionToken
-	write, err := rest.NewWrite(rest.Master(), "_Session", nil, sessionData, nil, l.Info.ClientSDK)
+	write, err := rest.NewWrite(rest.Master(l.Info), "_Session", nil, sessionData, nil, l.Info.ClientSDK)
 	if err != nil {
 		l.HandleError(err, 0)
 		return

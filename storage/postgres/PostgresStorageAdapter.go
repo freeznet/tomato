@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"regexp"
-    "bytes"
 
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/types"
@@ -1704,9 +1704,14 @@ func (p *PostgresAdapter) PerformInitialization(options types.M) error {
 		options = types.M{}
 	}
 
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+
 	if volatileClassesSchemas, ok := options["VolatileClassesSchemas"].([]types.M); ok {
 		for _, schema := range volatileClassesSchemas {
-			err := p.createTable(utils.S(schema["className"]), schema, nil)
+			err := p.createTable(utils.S(schema["className"]), schema, tx)
 			if err != nil {
 				if e, ok := err.(*pq.Error); ok {
 					if e.Code != postgresDuplicateRelationError {
@@ -1721,11 +1726,6 @@ func (p *PostgresAdapter) PerformInitialization(options types.M) error {
 				}
 			}
 		}
-	}
-
-	tx, err := p.db.Begin()
-	if err != nil {
-		return err
 	}
 
 	_, err = tx.Exec(jsonObjectSetKey)
@@ -2804,36 +2804,30 @@ func getFields(query string) (int, []string, error) {
 }
 func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []types.M, err error) {
 
-	n, fields, err := getFields(query)
-
-	if err != nil {
-		return nil, err
-	}
-
-	data := make([]interface{}, n) // 保存数据slice
-	buff := make([]interface{}, n) // 临时数据slice
-	for i := 0; i < n; i++ {
-		buff[i] = &data[i]
-	}
 	rows, err := p.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	columns, _ := rows.Columns()
+	buff := make([]interface{}, len(columns))
 	for rows.Next() {
+		for i:=0; i<len(columns); i++{
+			buff[i] = &buff[i]
+		}
 		err := rows.Scan(buff...)
 		if err != nil {
 			return nil, err
 		}
 
 		line := make(map[string]interface{})
-		for i := 0; i < n; i++ {
-			switch reflect.TypeOf(data[i]).Kind(){
+		for i := 0; i < len(columns); i++ {
+			switch reflect.TypeOf(buff[i]).Kind(){
 			case reflect.Array,reflect.Slice:
-				b := data[i].([]byte)
-				data[i]= string(b)
+				b := buff[i].([]byte)
+				buff[i]= string(b)
 			}
-			line[fields[i]] = data[i]
+			line[columns[i]] = buff[i]
 		}
 		result = append(result, line)
 

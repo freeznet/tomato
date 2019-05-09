@@ -37,7 +37,7 @@ func GetFileData(filename string) ([]byte, error) {
 }
 
 // CreateFile 创建文件，返回文件地址与文件名
-func CreateFile(filename string, data []byte, contentType string, user types.M) types.M {
+func CreateFile(filename string, data []byte, contentType string, user types.M, info *types.RequestInfo) types.M {
 	extname := utils.ExtName(filename)
 	if extname == "" && contentType != "" && utils.LookupExtension(contentType) != "" {
 		filename = filename + "." + utils.LookupExtension(contentType)
@@ -52,7 +52,7 @@ func CreateFile(filename string, data []byte, contentType string, user types.M) 
 	//if hasBeforeFileUploadHook == false {
 	//	return nil
 	//}
-	response, err := maybeRunTrigger(cloud.TypeBeforeFileUpload, extname, orifilename, data, contentType, user)
+	response, err := maybeRunTrigger(cloud.TypeBeforeFileUpload, extname, orifilename, data, contentType, user, info)
 	if err != nil {
 		return nil
 	}
@@ -76,7 +76,7 @@ func CreateFile(filename string, data []byte, contentType string, user types.M) 
 	//if hasAfterFileUploadHook == false {
 	//	return nil
 	//}
-	result, err := maybeRunAfterTrigger(cloud.TypeAfterFileUpload, extname, orifilename, filename, location)
+	result, err := maybeRunAfterTrigger(cloud.TypeAfterFileUpload, extname, orifilename, filename, location, info)
 	if err != nil {
 		return nil
 	}

@@ -43,7 +43,7 @@ func (u *UpgradeSessionController) HandleUpdateToRevocableSession() {
 		},
 	}
 
-	create, err := rest.NewWrite(rest.Master(), "_Session", nil, sessionData, nil, nil)
+	create, err := rest.NewWrite(rest.Master(u.Info), "_Session", nil, sessionData, nil, nil)
 	if err != nil {
 		u.HandleError(err, 0)
 		return

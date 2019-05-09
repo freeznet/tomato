@@ -22,26 +22,13 @@ import (
 // RawBody 原始请求数据
 type BaseController struct {
 	beego.Controller
-	Info     *RequestInfo
+	Info     *types.RequestInfo
 	Auth     *rest.Auth
 	Query    map[string]string
 	JSONBody types.M
 	RawBody  []byte
 }
 
-// RequestInfo http 请求的权限信息
-type RequestInfo struct {
-	AppID          string
-	MasterKey      string
-	ClientKey      string
-	JavaScriptKey  string
-	DotNetKey      string
-	RestAPIKey     string
-	SessionToken   string
-	InstallationID string
-	ClientVersion  string
-	ClientSDK      map[string]string
-}
 
 // Prepare 对请求权限进行处理
 // 1. 从请求头中获取各种 key
@@ -50,7 +37,7 @@ type RequestInfo struct {
 // 4. 校验请求权限
 // 5. 生成用户信息
 func (b *BaseController) Prepare() {
-	info := &RequestInfo{}
+	info := &types.RequestInfo{}
 	info.AppID = b.Ctx.Input.Header("X-Parse-Application-Id")
 	info.MasterKey = b.Ctx.Input.Header("X-Parse-Master-Key")
 	info.ClientKey = b.Ctx.Input.Header("X-Parse-Client-Key")
@@ -60,6 +47,13 @@ func (b *BaseController) Prepare() {
 	info.SessionToken = b.Ctx.Input.Header("X-Parse-Session-Token")
 	info.InstallationID = b.Ctx.Input.Header("X-Parse-Installation-Id")
 	info.ClientVersion = b.Ctx.Input.Header("X-Parse-Client-Version")
+
+	headers := map[string]string{}
+	for k := range b.Ctx.Request.Header {
+		headers[k] = b.Ctx.Request.Header.Get(k)
+	}
+	info.Headers = headers
+
 	basicAuth := httpAuth(b.Ctx.Input.Header("Authorization"))
 	if basicAuth != nil {
 		info.AppID = basicAuth["appId"]
@@ -182,12 +176,12 @@ func (b *BaseController) Prepare() {
 		return
 	}
 	if info.MasterKey == config.TConfig.MasterKey {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: false }
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: false, Info: info }
 		return
 	}
 
 	if config.TConfig.ReadOnlyMasterKey != "" && info.MasterKey == config.TConfig.ReadOnlyMasterKey {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: true }
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: true, IsReadOnly: true, Info: info }
 		return
 	}
 
@@ -209,16 +203,16 @@ func (b *BaseController) Prepare() {
 	}
 	// 生成当前会话用户权限信息
 	if info.SessionToken == "" {
-		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: false}
+		b.Auth = &rest.Auth{InstallationID: info.InstallationID, IsMaster: false, Info: info}
 		return
 	}
 	var auth *rest.Auth
 	var err error
 	if (url == "/v1/upgradeToRevocableSession" || url == "/v1/upgradeToRevocableSession/") &&
 		strings.Index(info.SessionToken, "r:") != 0 {
-		auth, err = rest.GetAuthForLegacySessionToken(info.SessionToken, info.InstallationID)
+		auth, err = rest.GetAuthForLegacySessionToken(info.SessionToken, info.InstallationID, info)
 	} else {
-		auth, err = rest.GetAuthForSessionToken(info.SessionToken, info.InstallationID)
+		auth, err = rest.GetAuthForSessionToken(info.SessionToken, info.InstallationID, info)
 	}
 	if err != nil {
 		b.HandleError(err, 0)

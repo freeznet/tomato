@@ -42,6 +42,7 @@ type TriggerRequest struct {
 	Data           []byte // beforeFile 时使用
 	ContentType    string // beforeFile 时使用
 	IsGet          bool
+	Headers        map[string]string
 }
 
 // FunctionRequest ...
