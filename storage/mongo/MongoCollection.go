@@ -24,18 +24,18 @@ func newMongoCollection(collection *mgo.Collection) *MongoCollection {
 // find 执行查找操作，自动添加索引
 func (m *MongoCollection) find(query interface{}, options types.M) ([]types.M, error) {
 	// Support for Full Text Search - $text
-	if options["keys"] != nil && options["keys"].(types.M)["$score"] != nil{
-		if _, ok := options["keys"].(types.M)["$score"] ; ok {
+	if options["keys"] != nil && options["keys"].(types.M)["$score"] != nil {
+		if _, ok := options["keys"].(types.M)["$score"]; ok {
 			delete(options["keys"].(types.M), "$score")
 		}
 		options["keys"].(types.M)["score"] = types.M{"$meta": "textScore"}
 	}
-	if _, ok := options["sort"].([]string); ok{
+	if _, ok := options["sort"].([]string); ok {
 		for i, v := range options["sort"].([]string) {
 			if v == "$score" {
-				options["sort"].([]string)[i] = "$textScore:"+v[1:]
+				options["sort"].([]string)[i] = "$textScore:" + v[1:]
 			} else if v == "-$score" {
-				options["sort"].([]string)[i] = "$textScore:-"+v[2:]
+				options["sort"].([]string)[i] = "$textScore:-" + v[2:]
 			}
 		}
 	}
@@ -173,6 +173,33 @@ func (m *MongoCollection) findOneAndUpdate(selector interface{}, update interfac
 		return types.M{}
 	}
 
+	return result
+}
+
+func (m *MongoCollection) distinct(field string, query interface{}) []types.M {
+	var result []types.M
+	err := m.collection.Find(query).Distinct(field, &result)
+	if err != nil {
+		return []types.M{}
+	}
+
+	return result
+}
+
+func (m *MongoCollection) aggregate(pipeline interface{}, options types.M) []types.M {
+	var result []types.M
+	pipe := m.collection.Pipe(pipeline)
+	if options["maxTimeMS"] != nil {
+		if maxTimeMS, ok := options["maxTimeMS"].(float64); ok {
+			pipe = pipe.SetMaxTime(time.Duration(maxTimeMS) * time.Millisecond)
+		} else if maxTimeMS, ok := options["maxTimeMS"].(int); ok {
+			pipe = pipe.SetMaxTime(time.Duration(maxTimeMS) * time.Millisecond)
+		}
+	}
+	err := pipe.All(&result)
+	if err != nil {
+		return []types.M{}
+	}
 	return result
 }
 

@@ -307,7 +307,7 @@ func (m *MongoAdapter) Find(className string, schema, query, options types.M) ([
 	if err != nil {
 		return nil, err
 	}
-	if keys, ok :=  options["sort"].(map[string]interface{}); ok {
+	if keys, ok := options["sort"].(map[string]interface{}); ok {
 		var mongoSort []string
 		for key, val := range keys {
 			var mongoKey string
@@ -382,12 +382,29 @@ func (m *MongoAdapter) Count(className string, schema, query types.M) (int, erro
 	return c, nil
 }
 
-func (p *MongoAdapter) Distinct(className, fieldName string, schema, query types.M) ([]types.M, error) {
-	return []types.M{}, nil
+func (m *MongoAdapter) Distinct(className, fieldName string, schema, query types.M) ([]types.M, error) {
+	schema = convertParseSchemaToMongoSchema(schema)
+	coll := m.adaptiveCollection(className)
+	mongoWhere, err := m.transform.transformWhere(className, query, schema)
+	if err != nil {
+		return nil, err
+	}
+	ret := coll.distinct(fieldName, mongoWhere)
+	return ret, nil
 }
 
-func (p *MongoAdapter) Aggregate(className string, schema, query, options types.M) ([]types.M, error){
-	return []types.M{}, nil
+func (m *MongoAdapter) Aggregate(className string, schema, query, options types.M) ([]types.M, error) {
+	schema = convertParseSchemaToMongoSchema(schema)
+	coll := m.adaptiveCollection(className)
+	pipeline := options["pipeline"]
+	ret := coll.aggregate(pipeline, options)
+	for _, v := range ret {
+		if id, has := v["_id"]; has {
+			v["objectId"] = id
+			delete(v, "_id")
+		}
+	}
+	return ret, nil
 }
 
 // EnsureUniqueness 创建索引
@@ -496,9 +513,9 @@ func mongoSchemaFromFieldsAndClassNameAndCLP(fields types.M, className string, c
 
 	return mongoObject
 }
-func (m *MongoAdapter)RawQuery(query string, args ...interface{}) (result []types.M, err error) {
-	return nil,nil
+func (m *MongoAdapter) RawQuery(query string, args ...interface{}) (result []types.M, err error) {
+	return nil, nil
 }
-func (m *MongoAdapter)RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
+func (m *MongoAdapter) RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
 	return nil
 }

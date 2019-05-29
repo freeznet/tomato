@@ -333,7 +333,6 @@ func (p *PostgresAdapter) UpdateFields(className string, schema types.M) error {
 		return err
 	}
 
-
 	return tx.Commit()
 }
 
@@ -831,7 +830,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 		if keys, ok := options["keys"].([]string); ok {
 			var postgresKeys []string
 			for _, key := range keys {
-				if key != "" && key != "$score"{
+				if key != "" && key != "$score" {
 					postgresKeys = append(postgresKeys, fmt.Sprintf(`"%s"`, key))
 				} else if key == "$score" {
 					postgresKeys = append(postgresKeys, fmt.Sprintf(`ts_rank_cd(%s, 32) as score`, strings.Replace(where.pattern, "@@", ",", -1)))
@@ -939,31 +938,26 @@ func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query ty
 	if query == nil {
 		query = types.M{}
 	}
-	field  := fieldName
+	field := fieldName
 	column := fieldName
+	isNested := strings.Contains(fieldName, ".")
+	if isNested {
+		field = strings.Join(transformDotFieldToComponents(fieldName), "->")
+		column = strings.Split(fieldName, ".")[0]
+	}
 	fields := utils.CopyMapM(utils.M(schema["fields"]))
 	if fields == nil {
 		fields = types.M{}
 	}
-
-	if strings.Index(fieldName, ".") > -1 {
-		components := strings.Split(fieldName, ".")
-		for index, cmpt := range components {
-			if index == 0 {
-				components[index] = `"` + cmpt + `"`
-			} else {
-				components[index] = `'` + cmpt + `'`
-			}
-		}
-		field = strings.Join(components, "->")
-		column = components[0]
-	}
-
 	isArrayField := false
-	if fields != nil {
-		if tp := utils.M(fields[fieldName]); tp != nil {
-			if utils.S(tp["type"]) == "Array" {
+	isPointerField := false
+
+	if vv, has := fields[fieldName]; has {
+		if field, ok := vv.(types.M); ok {
+			if field["type"] == "Array" {
 				isArrayField = true
+			} else if field["type"] == "Pointer" {
+				isPointerField = true
 			}
 		}
 	}
@@ -1016,14 +1010,43 @@ func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query ty
 		if err != nil {
 			return nil, err
 		}
-		object := types.M{}
+
+		var idx = -1
 		for i, f := range resultColumns {
 			if f == field {
-				object[field] = *resultValues[i]
+				idx = i
+				break
 			}
 		}
 
-		results = append(results, object)
+		object := types.M{}
+		if idx == -1 {
+			continue
+		}
+		if !isNested {
+			if !isPointerField {
+				object[field] = *resultValues[idx]
+				results = append(results, object)
+				continue
+			} else {
+				results = append(results, utils.GetPointer(fields[fieldName].(types.M)["targetClass"].(string), (*resultValues[idx]).(string)))
+				results = append(results, object)
+				continue
+			}
+		} else {
+			var child = strings.Split(fieldName, ".")[1]
+			var nestedObject = utils.M(*resultValues[idx])
+			if _, has := nestedObject[child]; has {
+				results = append(results, nestedObject)
+			}
+		}
+	}
+	for i, v := range results {
+		vv, err := postgresObjectToParseObject(v, fields)
+		if err != nil {
+			return nil, err
+		}
+		results[i] = vv
 	}
 
 	return results, nil
@@ -1031,250 +1054,275 @@ func (p *PostgresAdapter) Distinct(className, fieldName string, schema, query ty
 
 // AGGREGATE
 func (p *PostgresAdapter) Aggregate(className string, schema, query, options types.M) ([]types.M, error) {
-	//values := types.S{}
-	var selectPattern string
-	var wherePattern string
-	var groupPattern string
-	var limitPattern string
-	var sortPattern string
-	var skipPattern string
+	var index = 1
 	var countField string
-
+	var crossjoinField string
+	var groupValues types.M
+	var wherePattern = ""
+	var limitPattern string
+	var skipPattern string
+	var sortPattern string
+	var groupPattern string
+	var crossjoinPattern string
+	var groupByFields = []string{}
 	columns := []string{}
-	groupby := []string{}
+	values := types.S{}
 
-	pipeline := utils.M(options["pipeline"])
+	pipeline := []types.M{}
+	if p, has := options["pipeline"]; has {
+		pipeline, _ = p.([]types.M)
+	}
 
 	if pipeline == nil {
-		pipeline = types.M{}
+		pipeline = []types.M{}
 	}
 
-	if schema == nil {
-		schema = types.M{}
-	}
-	if options == nil {
-		options = types.M{}
+	fields := utils.CopyMapM(utils.M(schema["fields"]))
+	if fields == nil {
+		fields = types.M{}
 	}
 
-	var hasLimit bool
-	var hasSkip bool
-	if _, ok := options["limit"]; ok {
-		hasLimit = true
-	}
-	if _, ok := options["skip"]; ok {
-		hasSkip = true
-	}
-
-	values := types.S{}
-	where, err := buildWhereClause(schema, query, 1)
-	if err != nil {
-		return nil, err
-	}
-	values = append(values, where.values...)
-
-	if where.pattern != "" {
-		wherePattern = `WHERE ` + where.pattern
-	}
-	if hasLimit {
-		limitPattern = fmt.Sprintf(`LIMIT $%d`, len(values)+1)
-		values = append(values, options["limit"])
-	}
-	if hasSkip {
-		skipPattern = fmt.Sprintf(`OFFSET $%d`, len(values)+1)
-		values = append(values, options["skip"])
-	}
-
-
-	//if _, ok := options["order"]; ok {
-	//	if keys, ok := options["order"].([]string); ok {
-	//		postgresSort := []string{}
-	//		for _, key := range keys {
-	//			var postgresKey string
-	//			if strings.HasPrefix(key, "-") {
-	//				key = key[1:]
-	//				postgresKey = fmt.Sprintf(`"%s" DESC`, key)
-	//			} else {
-	//				postgresKey = fmt.Sprintf(`"%s" ASC`, key)
-	//			}
-	//			postgresSort = append(postgresSort, postgresKey)
-	//		}
-	//		sorting := strings.Join(postgresSort, ",")
-	//		if len(postgresSort) > 0 {
-	//			sortPattern = fmt.Sprintf(`ORDER BY %s`, sorting)
-	//		}
-	//	}
-	//}
-	if len(where.sorts) > 0 {
-		sortPattern = fmt.Sprintf(`ORDER BY %s`, strings.Join(where.sorts, ","))
-	}
-
-	for p := range pipeline {
-
-		stage := utils.M(pipeline[p])
-		if _, ok := pipeline["group"]; !ok{
-			columns = append(columns, "*")
+	if len(query) > 0 {
+		where, err := buildWhereClause(schema, query, index)
+		if err != nil {
+			return nil, err
 		}
-		if p == "sort" {
-			postgresSort := []string{}
-			if v, ok := pipeline[p].(string); ok {
-				for _, key := range strings.Split(v, ",") {
-					key = strings.Trim(key, "\"")
-					var postgresKey string
-					if strings.HasPrefix(key, "-") {
-						key = key[1:]
-						postgresKey = fmt.Sprintf(`"%s" DESC`, key)
-					} else {
-						postgresKey = fmt.Sprintf(`"%s" ASC`, key)
+		values = append(values, where.values...)
+
+		if len(where.pattern) > 0 {
+			wherePattern = fmt.Sprintf("WHERE %s", where.pattern)
+		}
+	}
+
+	hasGroup := false
+	for _, stage := range pipeline {
+		if stage["$group"] != nil {
+			hasGroup = true
+		}
+	}
+
+	if !hasGroup {
+		columns = append(columns, "*")
+	}
+
+	for _, stage := range pipeline {
+		if stageGroup, has := stage["$group"]; has {
+			if stageGroupValue := utils.M(stageGroup); stageGroupValue != nil {
+				for field, sv := range stageGroupValue {
+					if sv == nil {
+						continue
 					}
-					postgresSort = append(postgresSort, postgresKey)
-				}
-				sorting := strings.Join(postgresSort, ",")
-				if len(postgresSort) > 0 {
-					sortPattern = fmt.Sprintf(`ORDER BY %s`, sorting)
-				}
-			}
-			//sortPattern = fmt.Sprintf(`ORDER BY %s`, strings.Join(where.sorts, ","))
-		}
-
-		if p == "limit" {
-			if v, ok := pipeline[p].(string); ok {
-				if vv, ok :=strconv.Atoi(v); ok==nil {
-					limitPattern = fmt.Sprintf(`LIMIT $%d`, len(values)+1)
-					values = append(values, vv)
-				}
-			}
-		}
-
-		if stage != nil && p == "group" {
-			for field := range stage {
-				if v, ok := stage[field].(string); ok {
-					if field == "objectId" && v != "objectId" {
-						columns = append(columns, `"`+v+`" AS "`+field+`"`)
-						groupby = append(groupby, fmt.Sprintf("\"%s\"", v))
-					} else {
-						columns = append(columns, `"`+v+`" AS "`+field+`"`)
-						groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
+					if field == "_id" && reflect.TypeOf(sv).Kind() == reflect.String && sv.(string) != "" {
+						col := transformAggregateField(sv.(string))
+						columns = append(columns, `"`+col+`" AS "objectId"`)
+						groupByFields = func(slice []string, s string) []string {
+							for _, ele := range slice {
+								if ele == s {
+									return slice
+								}
+							}
+							return append(slice, s)
+						}(groupByFields, fmt.Sprintf(`"%s"`, col))
+						continue
 					}
-					continue
-				}
-				value := utils.M(stage[field])
-				if value != nil && value["sum"] != nil {
-					if v, ok := value["sum"].(string); ok {
-						if value["convert"] != nil{
-							if vv, ok := value["convert"].(string); ok {
-								columns = append(columns, "SUM(\""+ v + "\" :: "+vv+" ) AS \"" + field + "\"")
-								continue
+					if field == "_id" && reflect.TypeOf(sv).Kind() == reflect.Map && len(utils.M(sv)) > 0 {
+						groupValues = utils.M(sv)
+
+						for k, ali := range groupValues {
+							alias := utils.M(ali)
+							operation := ""
+							for o := range alias {
+								operation = o
+								break
+							}
+
+							if pgop, has := mongoAggregateToPostgres[operation]; has {
+								source := transformAggregateField(alias[operation].(string))
+								groupByFields = func(slice []string, s string) []string {
+									for _, ele := range slice {
+										if ele == s {
+											return slice
+										}
+									}
+									return append(slice, s)
+								}(groupByFields, fmt.Sprintf(`"%s"`, k))
+								columns = append(columns, fmt.Sprintf(`EXTRACT(%s FROM "%s" AT TIME ZONE 'UTC') AS "%s"`, pgop, source, k))
+							}
+
+							if operation == "$time_bucket" {
+								source := utils.M(alias[operation])
+								// bucket_width, time, offset, origin
+								bucket_width := source["bucket_width"].(string)
+								time := source["time"].(string)
+								groupByFields = func(slice []string, s string) []string {
+									for _, ele := range slice {
+										if ele == s {
+											return slice
+										}
+									}
+									return append(slice, s)
+								}(groupByFields, fmt.Sprintf(`"%s"`, k))
+								columns = append(columns, fmt.Sprintf(`time_bucket('%s', "%s") AS "%s"`, bucket_width, time, k))
+							}
+
+							if operation == "$time_bucket_gapfill" {
+								source := utils.M(alias[operation])
+								// bucket_width, time
+								bucket_width := source["bucket_width"].(string)
+								time := source["time"].(string)
+								groupByFields = func(slice []string, s string) []string {
+									for _, ele := range slice {
+										if ele == s {
+											return slice
+										}
+									}
+									return append(slice, s)
+								}(groupByFields, fmt.Sprintf(`"%s"`, k))
+								columns = append(columns, fmt.Sprintf(`time_bucket_gapfill('%s', "%s") AS "%s"`, bucket_width, time, k))
+							}
+
+							if operation == "$select" {
+								col := transformAggregateField(alias[operation].(string))
+								groupByFields = func(slice []string, s string) []string {
+									for _, ele := range slice {
+										if ele == s {
+											return slice
+										}
+									}
+									return append(slice, s)
+								}(groupByFields, fmt.Sprintf(`"%s"`, k))
+								columns = append(columns, `"`+col+`" AS "`+k+`"`)
 							}
 						}
-						columns = append(columns, "SUM(\""+ v + "\") AS \"" + field + "\"")
-					} else {
-						countField = field
-						columns = append(columns, "COUNT(*) AS \"" + field + "\"")
+						continue
 					}
-				}
-				if value != nil && value["max"] != nil {
-					if v, ok := value["max"].(string); ok {
-						columns = append(columns, "MAX(\""+ v + "\") AS \"" + field + "\"")
-					}
-				}
-				if value != nil && value["min"] != nil {
-					if v, ok := value["min"].(string); ok {
-						columns = append(columns, "MIN(\""+ v + "\") AS \"" + field + "\"")
-					}
-				}
-				if value != nil && value["avg"] != nil {
-					if v, ok := value["avg"].(string); ok {
-						columns = append(columns, "AVG(\""+ v + "\") AS \"" + field + "\"")
-					}
-				}
-				if value != nil && value["variance"] != nil {
-					if v, ok := value["variance"].(string); ok {
-						columns = append(columns, "variance(\""+ v + "\") AS \"" + field + "\"")
-					}
-				}
-				if value != nil && value["var_pop"] != nil {
-					if v, ok := value["var_pop"].(string); ok {
-						columns = append(columns, "var_pop(\""+ v + "\") AS \"" + field + "\"")
-					}
-				}
-				if value != nil && value["stddev"] != nil {
-					if v, ok := value["stddev"].(string); ok {
-						columns = append(columns, "variance(\""+ v + "\") AS \"" + field + "\"")
-					}
-				}
-				if value != nil && value["stddev_pop"] != nil {
-					if v, ok := value["stddev_pop"].(string); ok {
-						columns = append(columns, "stddev_pop(\""+ v + "\") AS \"" + field + "\"")
-					}
-				}
-				if value != nil && value["date_trunc"] != nil {
-					opt := utils.M(value["date_trunc"])
-					if opt != nil {
-						unit, ok := opt["unit"].(string)
-						if ok {
-							target, ok := opt["field"].(string)
-							if ok {
-								columns = append(columns, "date_trunc('"+ unit + "', \"" + target + "\") AS \"" + field + "\"")
-								groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
-							}
-						}
-					}
-				}
-				if value != nil && value["date_part"] != nil {
-					opt := utils.M(value["date_part"])
-					if opt != nil {
-						unit, ok := opt["unit"].(string)
-						if ok {
-							target, ok := opt["field"].(string)
-							if ok {
-								every, ok := opt["every"].(float64)
-								if ok && int(every) > 0{
-									columns = append(columns, fmt.Sprintf(`(date_part('%s', "%s")::int / %d) AS "%s"`, unit, target, int(every), field))
-									groupby = append(groupby, fmt.Sprintf(`"%s"`, field))
+					if reflect.TypeOf(sv).Kind() == reflect.Map {
+						value := utils.M(sv)
+						if value["$sum"] != nil {
+							if reflect.TypeOf(value["$sum"]).Kind() == reflect.String {
+								source := value["$sum"].(string)
+								if utils.M(fields[source]) != nil && utils.M(fields[source])["type"] == "Array" {
+									columns = append(columns, `SUM(("`+source+`"->>0)::numeric)::float AS "`+field+`"`)
+									crossjoinPattern = fmt.Sprintf(`CROSS JOIN jsonb_array_elements("%s")`, source)
+									crossjoinField = source
 								} else {
-									columns = append(columns, "date_part('"+unit+"', \""+target+"\") AS \""+field+"\"")
-									groupby = append(groupby, fmt.Sprintf("\"%s\"", field))
+									columns = append(columns, `SUM("`+source+`") AS "`+field+`"`)
+								}
+							} else {
+								countField = field
+								columns = append(columns, `COUNT(*) AS "`+field+`"`)
+							}
+						}
+						if value["$jsonb_array_length"] != nil {
+							if reflect.TypeOf(value["$jsonb_array_length"]).Kind() == reflect.String {
+								source := value["$jsonb_array_length"].(string)
+								if utils.M(fields[source]) != nil && utils.M(fields[source])["type"] == "Array" {
+									columns = append(columns, `AVG(jsonb_array_length("`+source+`"))::float AS "`+field+`"`)
+									crossjoinPattern = fmt.Sprintf(`CROSS JOIN jsonb_array_elements("%s")`, source)
+									crossjoinField = source
 								}
 							}
 						}
+						if value["$min"] != nil {
+							columns = append(columns, `MIN("`+value["$min"].(string)+`") AS "`+field+`"`)
+						}
+						if value["$max"] != nil {
+							columns = append(columns, `MAX("`+value["$min"].(string)+`") AS "`+field+`"`)
+						}
+						if value["$avg"] != nil {
+							source := value["$avg"].(string)
+							if utils.M(fields[source]) != nil && utils.M(fields[source])["type"] == "Array" {
+								columns = append(columns, `AVG(("`+source+`"->>0)::numeric)::float AS "`+field+`"`)
+								crossjoinPattern = fmt.Sprintf(`CROSS JOIN jsonb_array_elements("%s")`, source)
+								crossjoinField = source
+							} else {
+								columns = append(columns, `AVG("`+source+`") AS "`+field+`"`)
+							}
+						}
 					}
 				}
 			}
 		}
-		//fmt.Printf("columns %v \n", columns)
-		if stage != nil && p == "project" {
-			if _, ok := pipeline["group"]; !ok{
-				columns = []string{}
+		if stageProject, has := stage["$project"]; has {
+			for _, v := range columns {
+				if v == "*" {
+					columns = []string{}
+					break
+				}
 			}
-			for field := range stage {
-				switch v := stage[field].(type) {
-				case int32, int64:
-					if v == 1 {
-						columns = append(columns, fmt.Sprintf("\"%s\"", field))
+			if stageProjectValue := utils.M(stageProject); stageProjectValue != nil {
+				for field, sv := range stageProjectValue {
+					if value, ok := sv.(bool); (ok && value) || sv == 1 {
+						columns = append(columns, fmt.Sprintf(`"%s"`), field)
 					}
-				case bool:
-					if v {
-						columns = append(columns, fmt.Sprintf("\"%s\"", field))
-					}
-				default:
-					columns = append(columns, fmt.Sprintf("\"%s\"", field))
 				}
 			}
 		}
+		if stageMatch, has := stage["$match"]; has && len(query) == 0 {
+			patterns := []string{}
+			orOrAnd := " AND "
+			if stageMatchValue := utils.M(stageMatch); stageMatchValue != nil {
+				if stageMatchValue["$or"] != nil {
+					orOrAnd = " OR "
+					var collapse types.M
+					if orPatterns, ok := stageMatchValue["$or"].([]types.M); ok {
+						for _, ele := range orPatterns {
+							for k, element := range ele {
+								collapse[k] = element
+							}
+						}
+					}
+					stageMatchValue["$match"] = collapse
+				}
+				for field, sv := range stageMatchValue {
+					matchPatterns := []string{}
+					if value := utils.M(sv); value != nil {
+						for cmp, pgComparator := range parseToPosgresComparator {
+							if v, ok := value[cmp]; ok {
+								patterns = append(patterns, fmt.Sprintf(`"%s" %s $%d`, field, pgComparator, index))
+								values = append(values, toPostgresValue(v))
+								index = index + 1
+							}
+						}
+					}
+					if len(matchPatterns) > 0 {
+						patterns = append(patterns, fmt.Sprintf(`(%s)`, strings.Join(matchPatterns, " AND ")))
+					}
+					if fields[field] != nil && len(matchPatterns) == 0 && utils.M(fields[field])["type"] != nil {
+						patterns = append(patterns, fmt.Sprintf(`"%s" = $%d`, field, index))
+						values = append(values, sv)
+						index = index + 1
+					}
+				}
+			}
+			if len(patterns) > 0 {
+				wherePattern = fmt.Sprintf(`WHERE %s`, strings.Join(patterns, orOrAnd))
+			}
+		}
+		if stageLimit, has := stage["$limit"]; has {
+			limitPattern = fmt.Sprintf(`LIMIT %d`, stageLimit)
+		}
+		if stageSkip, has := stage["$skip"]; has {
+			skipPattern = fmt.Sprintf(`OFFSET %d`, stageSkip)
+		}
+		if stageSort, has := stage["$sort"]; has {
+			if sortVal := utils.M(stageSort); sortVal != nil {
+				sortEle := []string{}
+				for k := range sortVal {
+					transformer := "DESC"
+					if sortVal[k] == 1 {
+						transformer = "ASC"
+					}
+					order := fmt.Sprintf(`"%s" %s`, k, transformer)
+					sortEle = append(sortEle, order)
+				}
+				sortPattern = fmt.Sprintf(`ORDER BY %s`, strings.Join(sortEle, ","))
+			}
+		}
 	}
+	groupPattern = `GROUP BY ` + strings.Join(groupByFields, ",")
 
-	if len(columns) > 0 {
-		selectPattern = strings.Join(columns, ",")
-	} else {
-		selectPattern = "*"
-	}
-
-	if len(groupby) > 0 {
-		groupPattern = "GROUP BY " + strings.Join(groupby, ",")
-	}
-
-	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s`, selectPattern, className, wherePattern,  groupPattern, sortPattern, limitPattern, skipPattern)
-
+	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s %s`, strings.Join(columns, ","), className, crossjoinPattern, wherePattern, skipPattern, groupPattern, sortPattern, limitPattern)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
@@ -1298,28 +1346,47 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		}
 		resultValues := []*interface{}{}
 		values := types.S{}
+		hasObjectId := false
 		for i := 0; i < len(resultColumns); i++ {
 			var v interface{}
 			resultValues = append(resultValues, &v)
 			values = append(values, &v)
+			if resultColumns[i] == "objectId" {
+				hasObjectId = true
+			}
 		}
 		err = rows.Scan(values...)
 		if err != nil {
 			return nil, err
 		}
+
 		object := types.M{}
 		for i, f := range resultColumns {
+			object[f] = *resultValues[i]
+		}
+
+		object, err = postgresObjectToParseObject(object, fields)
+		if err != nil {
+			return nil, err
+		}
+		if !hasObjectId {
+			object["objectId"] = nil
+		}
+		if len(groupValues) > 0 {
+			var inner = types.M{}
+			for key := range groupValues {
+				inner[key] = object[key]
+				delete(object, key)
+			}
+			object["objectId"] = inner
+		}
+
+		for _, f := range resultColumns {
 			if f == countField {
-				object[f] = (*resultValues[i]).(int64)
-			} else if f == "objectId" {
-				bs := (*resultValues[i]).([]uint8)
-				b := make([]byte, len(bs))
-				for i, v := range bs {
-					b[i] = byte(v)
-				}
-				object[f] = string(b)
-			} else {
-				object[f] = *resultValues[i]
+				object[f] = (object[f]).(int64)
+			}
+			if f == crossjoinField && object[f] != nil {
+				object[f], _ = strconv.ParseFloat(object[f].(string), 64)
 			}
 		}
 
@@ -1981,6 +2048,21 @@ var parseToPosgresComparator = map[string]string{
 	"$lte": "<=",
 }
 
+var mongoAggregateToPostgres = map[string]string{
+	"$dayOfMonth":   "DAY",
+	"$dayOfWeek":    "DOW",
+	"$dayOfYear":    "DOY",
+	"$isoDayOfWeek": "ISODOW",
+	"$isoWeekYear":  "ISOYEAR",
+	"$hour":         "HOUR",
+	"$minute":       "MINUTE",
+	"$second":       "SECOND",
+	"$millisecond":  "MILLISECONDS",
+	"$month":        "MONTH",
+	"$week":         "WEEK",
+	"$year":         "YEAR",
+}
+
 func parseTypeToPostgresType(t types.M) (string, error) {
 	if t == nil {
 		return "", nil
@@ -2178,13 +2260,16 @@ func transformDotField(fieldName string) string {
 		return `"` + fieldName + `"`
 	}
 	components := transformDotFieldToComponents(fieldName)
-	name := strings.Join(components[0:len(components) - 1], "->")
-	name += "->>" + components[len(components) - 1]
+	name := strings.Join(components[0:len(components)-1], "->")
+	name += "->>" + components[len(components)-1]
 	return name
 }
 
 func transformAggregateField(fieldName string) string {
-	return fieldName[0:1]
+	if strings.Contains(fieldName, "$") {
+		return fieldName[1:]
+	}
+	return fieldName
 }
 
 func validateKeys(object interface{}) error {
@@ -2284,7 +2369,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					// 当数据类型为types.M或types.S时，使用->操作
 					name = strings.Join(transformDotFieldToComponents(fieldName), "->")
 					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, string(b)))
-				}else {
+				} else {
 					patterns = append(patterns, fmt.Sprintf(`%s = '%v'`, name, fieldValue))
 				}
 			}
@@ -2465,7 +2550,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					languageVal, ok := search["$language"].(string)
 					if search["$language"] != nil && !ok {
 						return nil, errs.E(errs.InvalidJSON, "bad $text: $language, should be string")
-					} else if languageVal != ""{
+					} else if languageVal != "" {
 						language = languageVal
 					}
 					caseSensitive, ok := search["$caseSensitive"].(bool)
@@ -2477,7 +2562,7 @@ func buildWhereClause(schema, query types.M, index int) (*whereClause, error) {
 					diacriticSensitive, ok := search["$diacriticSensitive"].(bool)
 					if search["$diacriticSensitive"] != nil && !ok {
 						return nil, errs.E(errs.InvalidJSON, "bad $text: $diacriticSensitive, should be boolean")
-					} else if ok && !diacriticSensitive{
+					} else if ok && !diacriticSensitive {
 						return nil, errs.E(errs.InvalidJSON, "bad $text: $diacriticSensitive - false not supported, install Postgres Unaccent Extension")
 					}
 					patterns = append(patterns, fmt.Sprintf(`to_tsvector($%d, "%s") @@ to_tsquery($%d, $%d)`, index, fieldName, index+1, index+2))
@@ -2689,16 +2774,16 @@ func valueToDate(v interface{}) types.M {
 	return nil
 }
 func getFields(query string) (int, []string, error) {
-	fromIndex:=strings.Index(strings.ToUpper(query),"FROM")
-	if fromIndex<2{
-		return -1,nil, errs.E(errs.InvalidQuery,"invalid sql")
+	fromIndex := strings.Index(strings.ToUpper(query), "FROM")
+	if fromIndex < 2 {
+		return -1, nil, errs.E(errs.InvalidQuery, "invalid sql")
 	}
-	fields := strings.Split(query[:fromIndex],",")
+	fields := strings.Split(query[:fromIndex], ",")
 
-	for i,v:=range fields{
-		m:=strings.Fields(v)
-		fields[i]=m[len(m)-1]
-		fields[i]=strings.Replace(fields[i],"\"","",-1)
+	for i, v := range fields {
+		m := strings.Fields(v)
+		fields[i] = m[len(m)-1]
+		fields[i] = strings.Replace(fields[i], "\"", "", -1)
 	}
 	return len(fields), fields, nil
 }
@@ -2712,7 +2797,7 @@ func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []
 	columns, _ := rows.Columns()
 	buff := make([]interface{}, len(columns))
 	for rows.Next() {
-		for i:=0; i<len(columns); i++{
+		for i := 0; i < len(columns); i++ {
 			buff[i] = &buff[i]
 		}
 		err := rows.Scan(buff...)
@@ -2722,10 +2807,10 @@ func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []
 
 		line := make(map[string]interface{})
 		for i := 0; i < len(columns); i++ {
-			switch reflect.TypeOf(buff[i]).Kind(){
-			case reflect.Array,reflect.Slice:
+			switch reflect.TypeOf(buff[i]).Kind() {
+			case reflect.Array, reflect.Slice:
 				b := buff[i].([]byte)
-				buff[i]= string(b)
+				buff[i] = string(b)
 			}
 			line[columns[i]] = buff[i]
 		}
@@ -2784,7 +2869,7 @@ func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface
 		perm.WriteString(",\"_wperm\"")
 
 	}
-	if !rperm||!wperm{
+	if !rperm || !wperm {
 		buffer.WriteString(perm.String())
 	}
 	buffer.WriteString(")values(")
@@ -2795,7 +2880,7 @@ func (p *PostgresAdapter) RawBatchInsert(className string, objects [][]interface
 		return err
 	}
 	for _, value := range objects {
-		value = append(value, utils.CreateObjectID(),time.Now(),time.Now())
+		value = append(value, utils.CreateObjectID(), time.Now(), time.Now())
 		if !rperm {
 			value = append(value, nil)
 		}
