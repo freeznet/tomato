@@ -207,6 +207,10 @@ func mongoFieldToParseSchemaField(t string) types.M {
 		return types.M{
 			"type": "Bytes",
 		}
+	case "polygon":
+		return types.M{
+			"type": "Polygon",
+		}
 	}
 
 	return types.M{}
@@ -331,6 +335,8 @@ func parseFieldTypeToMongoFieldType(t types.M) string {
 		return "file"
 	case "Bytes":
 		return "bytes"
+	case "Polygon":
+		return "polygon"
 	default:
 		return ""
 	}

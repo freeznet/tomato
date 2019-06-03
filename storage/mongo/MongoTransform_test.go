@@ -2732,6 +2732,30 @@ func Test_mongoObjectToParseObject(t *testing.T) {
 	}
 	/*************************************************/
 	mongoObject = types.M{
+		"location": types.M{
+			"type": "Polygon",
+			"coordinates": types.S{types.S{types.S{45, -45}, types.S{45, -45}}},
+		},
+	}
+	schema = types.M{
+		"fields": types.M{
+			"location": types.M{
+				"type": "Polygon",
+			},
+		},
+	}
+	result, err = tf.mongoObjectToParseObject("", mongoObject, schema)
+	expect = types.M{
+		"location": types.M{
+			"__type": "Polygon",
+			"coordinates": types.S{types.S{45, -45}, types.S{45, -45}},
+		},
+	}
+	if err != nil || reflect.DeepEqual(expect, result) == false {
+		t.Error("expect:", expect, "get result:", result)
+	}
+	/*************************************************/
+	mongoObject = types.M{
 		"data": "aGVsbG8=",
 	}
 	schema = types.M{

@@ -629,6 +629,28 @@ func (t *Transform) transformConstraint(constraint interface{}, inArray bool) (i
 				"$polygon": points,
 			}
 
+		case "$geoIntersects":
+			geoIntersects := utils.M(object[key])
+			if geoIntersects == nil {
+				return nil, errs.E(errs.InvalidJSON, "bad $geoIntersects value")
+			}
+			point := utils.M(geoIntersects["$point"])
+			g := geoPointCoder{}
+			if g.isValidJSON(utils.M(point)) {
+				_, err := g.jsonToDatabase(utils.M(point))
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				return nil, errs.E(errs.InvalidJSON, "bad $geoIntersect value; $point should be GeoPoint")
+			}
+			answer[key] = types.M{
+				"$polygon": types.M{
+					"type": "Point",
+					"coordinates": types.S{point["longitude"], point["latitude"]},
+				},
+			}
+
 		default:
 			b, _ := regexp.MatchString(`^\$+`, key)
 			if b {
@@ -720,6 +742,16 @@ func (t *Transform) transformTopLevelAtom(atom interface{}) (interface{}, error)
 		g := geoPointCoder{}
 		if g.isValidJSON(object) {
 			return g.jsonToDatabase(object)
+		}
+
+		// Polygon 类型
+		//{
+		//	"__type": "Polygon",
+		//	"coordinates": [[0,0], [0,0], [1,1], [1,0]],
+		//}
+		p := polygonCoder{}
+		if p.isValidJSON(object) {
+			return p.jsonToDatabase(object)
 		}
 
 		// File 类型
@@ -1476,6 +1508,16 @@ func (t *Transform) mongoObjectToParseObject(className string, mongoObject inter
 						restObject[key] = g.databaseToJSON(value)
 						break
 					}
+					// polygon 类型
+					//{
+					//	"__type": "Polygon",
+					//	"coordinates": [[0,0], [0,0], [1,1], [1,0]],
+					//}
+					p := polygonCoder{}
+					if expectedType != nil && utils.S(expectedType["type"]) == "Polygon" && p.isValidDatabaseObject(value) {
+						restObject[key] = p.databaseToJSON(value)
+						break
+					}
 					// bytesCoder 类型
 					// {
 					// 	"__type": "Bytes",
@@ -1695,6 +1737,66 @@ func (g geoPointCoder) jsonToDatabase(json types.M) (interface{}, error) {
 
 func (g geoPointCoder) isValidJSON(value types.M) bool {
 	return value != nil && utils.S(value["__type"]) == "GeoPoint" && value["longitude"] != nil && value["latitude"] != nil
+}
+
+// polygonCoder Polygon 类型处理
+type polygonCoder struct {}
+
+func (p polygonCoder) databaseToJSON(object interface{}) types.M {
+	return types.M{
+		"__type": "Polygon",
+		"coordinates": utils.A(utils.M(object)["coordinates"])[0],
+	}
+}
+
+func (p polygonCoder) isValidDatabaseObject(object interface{}) bool {
+	coords := utils.A(utils.M(object)["coordinates"])[0]
+	_, ok := coords.(types.S)
+	if utils.M(object)["type"] != "Polygon" || !ok {
+		return false
+	}
+	for _, point := range utils.A(coords) {
+		g := geoPointCoder{}
+		if !g.isValidDatabaseObject(point) {
+			return false
+		}
+		err := utils.ValidatePolygonPoint(utils.A(point)[1], utils.A(point)[0])
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func (p polygonCoder) jsonToDatabase(json types.M) (interface{}, error) {
+	coords := utils.A(json["coordinates"])
+	if utils.A(coords[0])[0] != utils.A(coords[len(coords) - 1])[0] || utils.A(coords[0])[1] != utils.A(coords[len(coords) - 1])[1]{
+		coords = append(coords, coords[0])
+	}
+	var unique []types.S
+	for _, polygonItem := range coords {
+		flag := true
+		for _, uniqueItem := range unique {
+			if utils.A(polygonItem)[0] == utils.A(uniqueItem)[0] && utils.A(polygonItem)[1] == utils.A(uniqueItem)[1] {
+				flag = false
+				break
+			}
+		}
+		if flag {
+			unique = append(unique, utils.A(polygonItem))
+		}
+	}
+	if len(unique) < 3 {
+		return nil, errs.E(errs.InternalServerError, "GeoJSON: Loop must have at least 3 different vertices")
+	}
+	return types.M{
+		"type": "Polygon",
+		"coordinates": coords,
+	},nil
+}
+
+func (p polygonCoder) isValidJSON(value types.M) bool {
+	return value != nil && utils.S(value["__type"]) == "Polygon"
 }
 
 // fileCoder File 类型处理

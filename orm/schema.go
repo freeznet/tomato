@@ -850,6 +850,11 @@ func getObjectType(obj interface{}) (types.M, error) {
 				if object["base64"] != nil {
 					return types.M{"type": "Bytes"}, nil
 				}
+			case "Polygon":
+				if object["coordinates"] != nil {
+					return types.M{"type": "Polygon"}, nil
+				}
+
 			}
 			// 当 __type 的值不在以上 6 种类型之中时，为无效类型
 			// 当 __type 的值在以上 6 种类型之中，但是不符合详细规则时，为无效的类型
@@ -951,6 +956,7 @@ var validNonRelationOrPointerTypes = map[string]bool{
 	"GeoPoint": true,
 	"File":     true,
 	"Bytes":     true,
+	"Polygon": 	true,
 }
 
 // fieldTypeIsInvalid 检测字段类型是否合法

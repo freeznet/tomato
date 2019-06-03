@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"fmt"
+	"github.com/freeznet/tomato/errs"
 	"reflect"
 	"regexp"
+	"strconv"
 
 	"github.com/freeznet/tomato/types"
 )
@@ -119,4 +122,66 @@ func StringInSlice(a string, list []string) bool {
 
 func GetPointer(className, objectId string) types.M {
 	return types.M{"__type": "Pointer", "className": className, "objectId": objectId}
+}
+
+
+/*
+* Throws an exception if the given lat-long is out of bounds.
+*/
+func ValidatePolygonPoint(latitude, longitude interface{}) error {
+	var latitudeTemp float64
+	var longitudeTemp float64
+	if _, ok := latitude.(float64); ok {
+		latitudeTemp = latitude.(float64)
+	} else if i, ok := latitude.(int); ok {
+		if i < -90 {
+			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' < -90.0.", i))
+		}
+		if i > 90 {
+			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' > 90.0.", i))
+		}
+	}else if s, ok := latitude.(string); ok {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return errs.E(errs.InvalidJSON, "GeoPoint latitude and longitude must be valid numbers")
+		} else {
+			latitudeTemp = f
+		}
+	} else {
+		return errs.E(errs.InvalidJSON, "GeoPoint latitude and longitude must be valid numbers")
+	}
+
+	if _, ok := longitude.(float64); ok {
+		longitudeTemp = longitude.(float64)
+	} else if i, ok := longitude.(int); ok {
+		if i < -180 {
+			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' < -180.0.", i))
+		}
+		if i > 180 {
+			return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' > 180.0.", i))
+		}
+	}else if s, ok := longitude.(string); ok {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return errs.E(errs.InvalidJSON, "GeoPoint latitude and longitude must be valid numbers")
+		} else {
+			longitudeTemp = f
+		}
+	} else {
+		return errs.E(errs.InvalidJSON, "GeoPoint latitude and longitude must be valid numbers")
+	}
+
+	if latitudeTemp < -90.0 {
+		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' < -90.0.", latitudeTemp))
+	}
+	if latitudeTemp > 90.0 {
+		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint latitude out of bounds: ' %d ' > 90.0.", latitudeTemp))
+	}
+	if longitudeTemp < -180.0 {
+		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' < -180.0.", longitudeTemp))
+	}
+	if longitudeTemp > 180.0 {
+		return errs.E(errs.InvalidJSON, fmt.Sprintf("GeoPoint longitude out of bounds: ' %d ' > 180.0.", longitudeTemp))
+	}
+	return nil
 }
