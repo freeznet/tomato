@@ -1063,6 +1063,7 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 	var index = 1
 	var countField string
 	var crossjoinField string
+	var arrayField string
 	var groupValues types.M
 	var wherePattern = ""
 	var limitPattern string
@@ -1199,24 +1200,6 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 								}(groupByFields, fmt.Sprintf(`"%s"`, k))
 								columns = append(columns, `"`+col+`" AS "`+k+`"`)
 							}
-
-							if operation == "$histogram" {
-								source := utils.M(alias[operation])
-								// value, min, max, nbuckets
-								value := source["value"].(string)
-								min := source["min"].(string)
-								max := source["max"].(string)
-								nbuckets := source["nbuckets"].(string)
-								groupByFields = func(slice []string, s string) []string {
-									for _, ele := range slice {
-										if ele == s {
-											return slice
-										}
-									}
-									return append(slice, s)
-								}(groupByFields, fmt.Sprintf(`"%s"`, k))
-								columns = append(columns, fmt.Sprintf(`histogram("%s", '%s', '%s', '%s') AS "%s"`, value, min, max, nbuckets, k))
-							}
 						}
 						continue
 					}
@@ -1251,7 +1234,7 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 							columns = append(columns, `MIN("`+value["$min"].(string)+`") AS "`+field+`"`)
 						}
 						if value["$max"] != nil {
-							columns = append(columns, `MAX("`+value["$min"].(string)+`") AS "`+field+`"`)
+							columns = append(columns, `MAX("`+value["$max"].(string)+`") AS "`+field+`"`)
 						}
 						if value["$avg"] != nil {
 							source := value["$avg"].(string)
@@ -1261,6 +1244,17 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 								crossjoinField = source
 							} else {
 								columns = append(columns, `AVG("`+source+`") AS "`+field+`"`)
+							}
+						}
+						if value["$histogram"] != nil {
+							source := utils.M(value["$histogram"])
+							if source != nil {
+								val := source["value"].(string)
+								min := source["min"].(string)
+								max := source["max"].(string)
+								nbuckets := source["nbuckets"].(string)
+								columns = append(columns, fmt.Sprintf(`array_to_json(histogram("%s", '%s', '%s', '%s')) AS "%s"`, val, min, max, nbuckets, field))
+								arrayField = field
 							}
 						}
 					}
@@ -1278,6 +1272,60 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 				for field, sv := range stageProjectValue {
 					if value, ok := sv.(bool); (ok && value) || sv == 1 {
 						columns = append(columns, fmt.Sprintf(`"%s"`), field)
+					}
+					if value := utils.M(sv); value != nil {
+						if value["$sum"] != nil {
+							if reflect.TypeOf(value["$sum"]).Kind() == reflect.String {
+								source := value["$sum"].(string)
+								if utils.M(fields[source]) != nil && utils.M(fields[source])["type"] == "Array" {
+									columns = append(columns, `SUM(("`+source+`"->>0)::numeric)::float AS "`+field+`"`)
+									crossjoinPattern = fmt.Sprintf(`CROSS JOIN jsonb_array_elements("%s")`, source)
+									crossjoinField = source
+								} else {
+									columns = append(columns, `SUM("`+source+`") AS "`+field+`"`)
+								}
+							} else {
+								countField = field
+								columns = append(columns, `COUNT(*) AS "`+field+`"`)
+							}
+						}
+						if value["$jsonb_array_length"] != nil {
+							if reflect.TypeOf(value["$jsonb_array_length"]).Kind() == reflect.String {
+								source := value["$jsonb_array_length"].(string)
+								if utils.M(fields[source]) != nil && utils.M(fields[source])["type"] == "Array" {
+									columns = append(columns, `AVG(jsonb_array_length("`+source+`"))::float AS "`+field+`"`)
+									crossjoinPattern = fmt.Sprintf(`CROSS JOIN jsonb_array_elements("%s")`, source)
+									crossjoinField = source
+								}
+							}
+						}
+						if value["$min"] != nil {
+							columns = append(columns, `MIN("`+value["$min"].(string)+`") AS "`+field+`"`)
+						}
+						if value["$max"] != nil {
+							columns = append(columns, `MAX("`+value["$max"].(string)+`") AS "`+field+`"`)
+						}
+						if value["$avg"] != nil {
+							source := value["$avg"].(string)
+							if utils.M(fields[source]) != nil && utils.M(fields[source])["type"] == "Array" {
+								columns = append(columns, `AVG(("`+source+`"->>0)::numeric)::float AS "`+field+`"`)
+								crossjoinPattern = fmt.Sprintf(`CROSS JOIN jsonb_array_elements("%s")`, source)
+								crossjoinField = source
+							} else {
+								columns = append(columns, `AVG("`+source+`") AS "`+field+`"`)
+							}
+						}
+						if value["$histogram"] != nil {
+							source := utils.M(value["$histogram"])
+							if source != nil {
+								val := source["value"].(string)
+								min := source["min"].(string)
+								max := source["max"].(string)
+								nbuckets := source["nbuckets"].(string)
+								columns = append(columns, fmt.Sprintf(`array_to_json(histogram("%s", '%s', '%s', '%s')) AS "%s"`, val, min, max, nbuckets, field))
+								arrayField = field
+							}
+						}
 					}
 				}
 			}
@@ -1344,7 +1392,9 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 			}
 		}
 	}
-	groupPattern = `GROUP BY ` + strings.Join(groupByFields, ",")
+	if len(groupByFields) > 0 {
+		groupPattern = `GROUP BY ` + strings.Join(groupByFields, ",")
+	}
 
 	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s %s`, strings.Join(columns, ","), className, crossjoinPattern, wherePattern, skipPattern, groupPattern, sortPattern, limitPattern)
 	rows, err := p.db.Query(qs, values...)
@@ -1388,7 +1438,6 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		for i, f := range resultColumns {
 			object[f] = *resultValues[i]
 		}
-
 		object, err = postgresObjectToParseObject(object, fields)
 		if err != nil {
 			return nil, err
@@ -1406,11 +1455,28 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 		}
 
 		for _, f := range resultColumns {
-			if f == countField {
+			if f == countField && object[f] != nil {
 				object[f] = (object[f]).(int64)
 			}
 			if f == crossjoinField && object[f] != nil {
 				object[f], _ = strconv.ParseFloat(object[f].(string), 64)
+			}
+			if arrayField != "" && f == arrayField && object[f] != nil {
+				if v, ok := object[f].([]byte); ok {
+					var r types.S
+					err := json.Unmarshal(v, &r)
+					if err != nil {
+						return nil, err
+					}
+					object[f] = r
+				} else if v, ok := object[f].(string); ok {
+					var r types.S
+					err := json.Unmarshal([]byte(v), &r)
+					if err != nil {
+						return nil, err
+					}
+					object[f] = r
+				}
 			}
 		}
 
