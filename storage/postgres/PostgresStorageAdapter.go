@@ -1199,6 +1199,24 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 								}(groupByFields, fmt.Sprintf(`"%s"`, k))
 								columns = append(columns, `"`+col+`" AS "`+k+`"`)
 							}
+
+							if operation == "$histogram" {
+								source := utils.M(alias[operation])
+								// value, min, max, nbuckets
+								value := source["value"].(string)
+								min := source["min"].(string)
+								max := source["max"].(string)
+								nbuckets := source["nbuckets"].(string)
+								groupByFields = func(slice []string, s string) []string {
+									for _, ele := range slice {
+										if ele == s {
+											return slice
+										}
+									}
+									return append(slice, s)
+								}(groupByFields, fmt.Sprintf(`"%s"`, k))
+								columns = append(columns, fmt.Sprintf(`histogram("%s", '%s', '%s', '%s') AS "%s"`, value, min, max, nbuckets, k))
+							}
 						}
 						continue
 					}
@@ -1900,7 +1918,7 @@ func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
 				"longitude": longitude,
 				"latitude":  latitude,
 			}
-		}  else if objectType == "Polygon" && object[fieldName] != nil {
+		} else if objectType == "Polygon" && object[fieldName] != nil {
 			coords := ""
 			if v, ok := object[fieldName].([]byte); ok {
 				coords = string(v)
@@ -1909,17 +1927,17 @@ func postgresObjectToParseObject(object, fields types.M) (types.M, error) {
 			}
 
 			coordsLen := len(coords) - 2
-			coordsArr := strings.Split(string([]rune(coords)[2:coordsLen]),"),(")
+			coordsArr := strings.Split(string([]rune(coords)[2:coordsLen]), "),(")
 			points := types.S{}
 			for _, v := range coordsArr {
 				temp := strings.Split(v, ",")
 				points = append(points, types.S{temp[1], temp[0]})
 			}
 			object[fieldName] = types.M{
-				"__type": "Polygon",
+				"__type":      "Polygon",
 				"coordinates": points,
 			}
-		}else if objectType == "File" && object[fieldName] != nil {
+		} else if objectType == "File" && object[fieldName] != nil {
 			if v, ok := object[fieldName].([]byte); ok {
 				object[fieldName] = types.M{
 					"__type": "File",
@@ -2750,7 +2768,7 @@ func convertPolygonToSQL(polygon types.S) (string, error) {
 	if len(polygon) < 3 {
 		return "", errs.E(errs.InvalidJSON, "Polygon must have at least 3 values")
 	}
-	if utils.A(polygon[0])[0] != utils.A(polygon[len(polygon) - 1])[0] || utils.A(polygon[0])[1] != utils.A(polygon[len(polygon) - 1])[1]{
+	if utils.A(polygon[0])[0] != utils.A(polygon[len(polygon)-1])[0] || utils.A(polygon[0])[1] != utils.A(polygon[len(polygon)-1])[1] {
 		polygon = append(polygon, polygon[0])
 	}
 
