@@ -1231,7 +1231,21 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 							}
 						}
 						if value["$min"] != nil {
-							columns = append(columns, `MIN("`+value["$min"].(string)+`") AS "`+field+`"`)
+							valueTarget := ""
+							if val, ok := value["$min"].(string); ok {
+								valueTarget = fmt.Sprintf(`"%s"`, val)
+							}
+							if val := utils.M(value["$min"]); val != nil {
+								if val["$jsonb_array_length"] != nil {
+									if reflect.TypeOf(val["$jsonb_array_length"]).Kind() == reflect.String {
+										col := val["$jsonb_array_length"].(string)
+										if utils.M(fields[col]) != nil && utils.M(fields[col])["type"] == "Array" {
+											valueTarget = fmt.Sprintf(`jsonb_array_length("` + col + `")`)
+										}
+									}
+								}
+							}
+							columns = append(columns, `MIN(`+valueTarget+`) AS "`+field+`"`)
 						}
 						if value["$max"] != nil {
 							columns = append(columns, `MAX("`+value["$max"].(string)+`") AS "`+field+`"`)
@@ -1249,11 +1263,24 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 						if value["$histogram"] != nil {
 							source := utils.M(value["$histogram"])
 							if source != nil {
-								val := source["value"].(string)
+								valueTarget := ""
+								if val, ok := source["value"].(string); ok {
+									valueTarget = fmt.Sprintf(`"%s"`, val)
+								}
+								if val := utils.M(source["value"]); val != nil {
+									if val["$jsonb_array_length"] != nil {
+										if reflect.TypeOf(val["$jsonb_array_length"]).Kind() == reflect.String {
+											col := val["$jsonb_array_length"].(string)
+											if utils.M(fields[col]) != nil && utils.M(fields[col])["type"] == "Array" {
+												valueTarget = fmt.Sprintf(`jsonb_array_length("` + col + `")`)
+											}
+										}
+									}
+								}
 								min := source["min"].(string)
 								max := source["max"].(string)
 								nbuckets := source["nbuckets"].(string)
-								columns = append(columns, fmt.Sprintf(`array_to_json(histogram("%s", '%s', '%s', '%s')) AS "%s"`, val, min, max, nbuckets, field))
+								columns = append(columns, fmt.Sprintf(`array_to_json(histogram(%s, '%s', '%s', '%s')) AS "%s"`, valueTarget, min, max, nbuckets, field))
 								arrayField = field
 							}
 						}
@@ -1300,10 +1327,38 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 							}
 						}
 						if value["$min"] != nil {
-							columns = append(columns, `MIN("`+value["$min"].(string)+`") AS "`+field+`"`)
+							valueTarget := ""
+							if val, ok := value["$min"].(string); ok {
+								valueTarget = fmt.Sprintf(`"%s"`, val)
+							}
+							if val := utils.M(value["$min"]); val != nil {
+								if val["$jsonb_array_length"] != nil {
+									if reflect.TypeOf(val["$jsonb_array_length"]).Kind() == reflect.String {
+										col := val["$jsonb_array_length"].(string)
+										if utils.M(fields[col]) != nil && utils.M(fields[col])["type"] == "Array" {
+											valueTarget = fmt.Sprintf(`jsonb_array_length("` + col + `")`)
+										}
+									}
+								}
+							}
+							columns = append(columns, `MIN(`+valueTarget+`) AS "`+field+`"`)
 						}
 						if value["$max"] != nil {
-							columns = append(columns, `MAX("`+value["$max"].(string)+`") AS "`+field+`"`)
+							valueTarget := ""
+							if val, ok := value["$max"].(string); ok {
+								valueTarget = fmt.Sprintf(`"%s"`, val)
+							}
+							if val := utils.M(value["$max"]); val != nil {
+								if val["$jsonb_array_length"] != nil {
+									if reflect.TypeOf(val["$jsonb_array_length"]).Kind() == reflect.String {
+										col := val["$jsonb_array_length"].(string)
+										if utils.M(fields[col]) != nil && utils.M(fields[col])["type"] == "Array" {
+											valueTarget = fmt.Sprintf(`jsonb_array_length("` + col + `")`)
+										}
+									}
+								}
+							}
+							columns = append(columns, `MAX(`+valueTarget+`) AS "`+field+`"`)
 						}
 						if value["$avg"] != nil {
 							source := value["$avg"].(string)
@@ -1318,11 +1373,24 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 						if value["$histogram"] != nil {
 							source := utils.M(value["$histogram"])
 							if source != nil {
-								val := source["value"].(string)
+								valueTarget := ""
+								if val, ok := source["value"].(string); ok {
+									valueTarget = fmt.Sprintf(`"%s"`, val)
+								}
+								if val := utils.M(source["value"]); val != nil {
+									if val["$jsonb_array_length"] != nil {
+										if reflect.TypeOf(val["$jsonb_array_length"]).Kind() == reflect.String {
+											col := val["$jsonb_array_length"].(string)
+											if utils.M(fields[col]) != nil && utils.M(fields[col])["type"] == "Array" {
+												valueTarget = fmt.Sprintf(`jsonb_array_length("` + col + `")`)
+											}
+										}
+									}
+								}
 								min := source["min"].(string)
 								max := source["max"].(string)
 								nbuckets := source["nbuckets"].(string)
-								columns = append(columns, fmt.Sprintf(`array_to_json(histogram("%s", '%s', '%s', '%s')) AS "%s"`, val, min, max, nbuckets, field))
+								columns = append(columns, fmt.Sprintf(`array_to_json(histogram(%s, '%s', '%s', '%s')) AS "%s"`, valueTarget, min, max, nbuckets, field))
 								arrayField = field
 							}
 						}
