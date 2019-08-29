@@ -26,6 +26,8 @@ func init() {
 		adapter = newTomatoPush()
 	} else if a == "FCM" {
 		adapter = newFCMPush()
+	} else if a == "UMeng" {
+		adapter = newUMengPush()
 	} else {
 		adapter = nil
 	}

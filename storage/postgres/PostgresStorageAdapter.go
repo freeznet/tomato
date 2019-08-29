@@ -814,7 +814,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 				var postgresKey string
 				if flg, ok := val.(int); ok {
 					if flg == -1 {
-						postgresKey = fmt.Sprintf(`"%s" DESC`, key)
+						postgresKey = fmt.Sprintf(`"%s" DESC NULLS LAST`, key)
 					} else if flg == 1 {
 						postgresKey = fmt.Sprintf(`"%s" ASC`, key)
 					}
@@ -1449,7 +1449,7 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 			if sortVal := utils.M(stageSort); sortVal != nil {
 				sortEle := []string{}
 				for k := range sortVal {
-					transformer := "DESC"
+					transformer := "DESC NULLS LAST"
 					if sortVal[k] == 1 {
 						transformer = "ASC"
 					}
