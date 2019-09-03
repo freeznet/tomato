@@ -12,13 +12,13 @@ import (
 // Auth 保存当前请求的用户权限信息
 type Auth struct {
 	IsMaster       bool
-	IsReadOnly	   bool
+	IsReadOnly     bool
 	InstallationID string
 	User           types.M
 	UserRoles      []string
 	FetchedRoles   bool
 	RolePromise    []string
-	Info		   *types.RequestInfo
+	Info           *types.RequestInfo
 }
 
 // Master 生成 Master 级别用户
@@ -52,7 +52,7 @@ func GetAuthForSessionToken(sessionToken string, installationID string, info *ty
 	if u := utils.M(cachedUser); u != nil {
 		return &Auth{
 			IsMaster:       false,
-			IsReadOnly:		false,
+			IsReadOnly:     false,
 			InstallationID: installationID,
 			User:           u,
 		}, nil
@@ -111,9 +111,10 @@ func GetAuthForSessionToken(sessionToken string, installationID string, info *ty
 
 	return &Auth{
 		IsMaster:       false,
-		IsReadOnly:false,
+		IsReadOnly:     false,
 		InstallationID: installationID,
 		User:           user,
+		Info:           info,
 	}, nil
 }
 
@@ -144,9 +145,10 @@ func GetAuthForLegacySessionToken(sessionToken, installationID string, info *typ
 	userObject["className"] = "_User"
 	return &Auth{
 		IsMaster:       false,
-		IsReadOnly:false,
+		IsReadOnly:     false,
 		InstallationID: installationID,
 		User:           userObject,
+		Info:           info,
 	}, nil
 }
 
