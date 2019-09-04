@@ -55,6 +55,7 @@ func GetAuthForSessionToken(sessionToken string, installationID string, info *ty
 			IsReadOnly:     false,
 			InstallationID: installationID,
 			User:           u,
+			Info:           info,
 		}, nil
 	}
 	// 缓存中不存在时，从数据库中查询
