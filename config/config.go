@@ -214,6 +214,11 @@ func parseConfig() {
 	TConfig.HDFSUser = beego.AppConfig.String("HDFSUser")
 	TConfig.HDFSRoot = beego.AppConfig.String("HDFSRoot")
 
+	TConfig.UMengAndroidAppKey = beego.AppConfig.String("UMengAndroidAppKey")
+	TConfig.UMengAndroidAppMasterSecret = beego.AppConfig.String("UMengAndroidAppMasterSecret")
+	TConfig.UMengIOSAppKey = beego.AppConfig.String("UMengIOSAppKey")
+	TConfig.UMengIOSAppMasterSecret = beego.AppConfig.String("UMengIOSAppMasterSecret")
+
 	if TConfig.DatabaseType == "PostgreSQL" {
 		TConfig.PgMaxConnections = beego.AppConfig.DefaultInt("PgMaxConnections", 100)
 	}
