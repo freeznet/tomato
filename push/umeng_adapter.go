@@ -129,6 +129,7 @@ func (u *umengPushAdapter) sendToAndroidDevices(tokens []string, body types.M) (
 	}
 	payload := umeng.AndroidBody{}
 	payload.DisplayType = "notification"
+	extras := map[string]string{}
 	for key, v := range pushData {
 		switch key {
 		case "alert":
@@ -139,10 +140,11 @@ func (u *umengPushAdapter) sendToAndroidDevices(tokens []string, body types.M) (
 			payload.Ticker = utils.S(v)
 			payload.Title = utils.S(v)
 		default:
+			extras[utils.S(key)] = utils.S(v)
 		}
 	}
 
-	return c.Push(payload, nil, policy, nil)
+	return c.Push(payload, nil, policy, extras)
 }
 
 func (u *umengPushAdapter) send(body types.M, installations types.S, pushStatus string) []types.M {
