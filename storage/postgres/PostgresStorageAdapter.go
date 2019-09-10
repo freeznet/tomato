@@ -1692,10 +1692,12 @@ func (p *PostgresAdapter) FindOneAndUpdate(className string, schema, query, upda
 
 			switch utils.S(object["__type"]) {
 			case "Pointer":
-				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
-				values = append(values, object["objectId"])
-				index = index + 1
-				continue
+				if tp := utils.M(fields[fieldName]); tp != nil && utils.S(tp["type"]) != "Object" {
+					updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
+					values = append(values, object["objectId"])
+					index = index + 1
+					continue
+				}
 			case "Date", "File":
 				updatePatterns = append(updatePatterns, fmt.Sprintf(`"%s" = $%d`, fieldName, index))
 				values = append(values, toPostgresValue(object))

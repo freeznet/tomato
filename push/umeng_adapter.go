@@ -102,6 +102,8 @@ func (u *umengPushAdapter) sendToAndroidDevices(tokens []string, body types.M) (
 		c.Type = "unicast"
 	}
 	c.TimeStamp = time.Now().Unix()
+	c.ChannelPush = true
+	c.ChannelActivity = "Test.Test"
 	policy := umeng.Policy{}
 
 	if t, ok := body["expiration_time"].(string); ok {
@@ -129,6 +131,7 @@ func (u *umengPushAdapter) sendToAndroidDevices(tokens []string, body types.M) (
 	}
 	payload := umeng.AndroidBody{}
 	payload.DisplayType = "notification"
+	payload.AfterOpen = "go_app"
 	extras := map[string]string{}
 	for key, v := range pushData {
 		switch key {

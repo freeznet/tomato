@@ -771,7 +771,7 @@ func includePath(auth *Auth, response types.M, path []string, restOptions types.
 			return err
 		}
 		if utils.HasResults(includeResponse) == false {
-			return nil
+			continue
 		}
 
 		// 组装查询到的对象
