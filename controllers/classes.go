@@ -85,6 +85,12 @@ func (c *ClassesController) HandleGet() {
 		options["keys"] = c.JSONBody["keys"]
 	}
 
+	if c.Query["excludeKeys"] != "" {
+		options["excludeKeys"] = c.Query["excludeKeys"]
+	} else if c.JSONBody != nil && c.JSONBody["excludeKeys"] != nil {
+		options["excludeKeys"] = c.JSONBody["excludeKeys"]
+	}
+
 	if c.Query["include"] != "" {
 		options["include"] = c.Query["include"]
 	} else if c.JSONBody["include"] != "" {
@@ -154,6 +160,7 @@ func (c *ClassesController) HandleFind() {
 		"order":                   true,
 		"count":                   true,
 		"keys":                    true,
+		"excludeKeys":			   true,
 		"include":                 true,
 		"redirectClassNameForKey": true,
 		"where":                   true,
@@ -215,6 +222,12 @@ func (c *ClassesController) HandleFind() {
 		options["keys"] = c.Query["keys"]
 	} else if c.JSONBody != nil && c.JSONBody["keys"] != nil {
 		options["keys"] = c.JSONBody["keys"]
+	}
+
+	if c.Query["excludeKeys"] != "" {
+		options["excludeKeys"] = c.Query["excludeKeys"]
+	} else if c.JSONBody != nil && c.JSONBody["excludeKeys"] != nil {
+		options["excludeKeys"] = c.JSONBody["excludeKeys"]
 	}
 
 	if c.Query["include"] != "" {
