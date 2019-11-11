@@ -836,7 +836,10 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 		if keys, ok := options["keys"].([]string); ok {
 			var postgresKeys []string
 			for _, key := range keys {
-				if key != "" && key != "$score" {
+				if key == "ACL" {
+					postgresKeys = append(postgresKeys, fmt.Sprintf(`"%s"`, "_rperm"))
+					postgresKeys = append(postgresKeys, fmt.Sprintf(`"%s"`, "_wperm"))
+				} else if key != "" && key != "$score" {
 					postgresKeys = append(postgresKeys, fmt.Sprintf(`"%s"`, key))
 				} else if key == "$score" {
 					postgresKeys = append(postgresKeys, fmt.Sprintf(`ts_rank_cd(%s, 32) as score`, strings.Replace(where.pattern, "@@", ",", -1)))
