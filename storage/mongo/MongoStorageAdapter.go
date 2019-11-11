@@ -329,8 +329,13 @@ func (m *MongoAdapter) Find(className string, schema, query, options types.M) ([
 		if keys, ok := options["keys"].([]string); ok {
 			mongoKeys := types.M{}
 			for _, key := range keys {
-				mongoKey := m.transform.transformKey(className, key, schema)
-				mongoKeys[mongoKey] = 1
+				if key == "ACL" {
+					mongoKeys["_rperm"] = 1
+					mongoKeys["_wperm"] = 1
+				} else {
+					mongoKey := m.transform.transformKey(className, key, schema)
+					mongoKeys[mongoKey] = 1
+				}
 			}
 			options["keys"] = mongoKeys
 		} else {
