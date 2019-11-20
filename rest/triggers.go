@@ -11,7 +11,7 @@ func getRequest(triggerType string, auth *Auth, parseObject, originalParseObject
 		TriggerName: triggerType,
 		Object:      parseObject,
 		Master:      false,
-		Headers: 	 auth.Info.Headers,
+		Headers:     auth.Info.Headers,
 	}
 
 	if originalParseObject != nil {
@@ -46,7 +46,7 @@ func getRequestQuery(triggerType string, auth *Auth, query types.M, count bool, 
 		Count:       count,
 		Master:      false,
 		IsGet:       isGet,
-		Headers: 	 auth.Info.Headers,
+		Headers:     auth.Info.Headers,
 	}
 
 	if auth == nil {
@@ -78,7 +78,7 @@ func maybeRunTrigger(triggerType string, auth *Auth, parseObject, originalParseO
 	return response.Response, response.Err
 }
 
-func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions types.M, auth *Auth, isGet bool) (types.M, types.M, error) {
+func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions types.M, auth *Auth, isGet bool, isAggregate, isDistinct bool) (types.M, types.M, error) {
 	trigger := cloud.GetTrigger(triggerType, className)
 	if trigger == nil {
 		return restWhere, restOptions, nil
@@ -109,6 +109,8 @@ func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions 
 	}
 
 	request := getRequestQuery(triggerType, auth, query, count, isGet)
+	request.IsAggregate = isAggregate
+	request.IsDistinct = isDistinct
 	response := getResponse(request)
 	trigger(request, response)
 
@@ -140,12 +142,40 @@ func maybeRunQueryTrigger(triggerType, className string, restWhere, restOptions 
 	return restWhere, restOptions, nil
 }
 
-func maybeRunAfterFindTrigger(triggerType, className string, objects types.S, auth *Auth) (types.S, error) {
+func maybeRunAfterFindTrigger(triggerType, className string, objects types.S, auth *Auth, restOptions, restWhere types.M) (types.S, error) {
 	trigger := cloud.GetTrigger(triggerType, className)
 	if trigger == nil {
 		return objects, nil
 	}
-	request := getRequest(triggerType, auth, nil, nil)
+
+	if restOptions == nil {
+		restOptions = types.M{}
+	}
+	query := types.M{}
+	if restWhere != nil {
+		query["where"] = restWhere
+	}
+	count := false
+	if restOptions["include"] != nil {
+		query["include"] = restOptions["include"]
+	}
+	if restOptions["skip"] != nil {
+		query["skip"] = restOptions["skip"]
+	}
+	if restOptions["limit"] != nil {
+		query["limit"] = restOptions["limit"]
+	}
+	if restOptions["count"] != nil {
+		count = true
+	}
+	if restOptions["order"] != nil {
+		query["order"] = restOptions["order"]
+	}
+
+	request := getRequestQuery(triggerType, auth, query, count, false)
+	request.IsAggregate = isRequestAggregate(restOptions)
+	request.IsDistinct = isRequestDistinct(restOptions)
+	//request := getRequest(triggerType, auth, nil, nil)
 	response := getResponse(request)
 	request.Objects = objects
 	trigger(request, response)

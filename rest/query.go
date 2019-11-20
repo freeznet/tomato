@@ -25,7 +25,7 @@ type Query struct {
 	doCount           bool
 	include           [][]string
 	keys              []string
-	excludeKeys		  []string
+	excludeKeys       []string
 	redirectKey       string
 	redirectClassName string
 	clientSDK         map[string]string
@@ -57,7 +57,7 @@ func NewQuery(
 		doCount:           false,
 		include:           [][]string{},
 		keys:              []string{},
-		excludeKeys:	   []string{},
+		excludeKeys:       []string{},
 		redirectKey:       "",
 		redirectClassName: "",
 		clientSDK:         clientSDK,
@@ -670,7 +670,6 @@ func (q *Query) handleExcludeKeys() error {
 		return nil
 	}
 
-
 	if !reflect.DeepEqual(q.keys, []string{}) {
 		keys := q.keys
 		for _, v := range q.excludeKeys {
@@ -738,7 +737,7 @@ func (q *Query) runAfterFindTrigger() error {
 	if hasAfterFindHook == false {
 		return nil
 	}
-	results, err := maybeRunAfterFindTrigger(cloud.TypeAfterFind, q.className, results, q.auth)
+	results, err := maybeRunAfterFindTrigger(cloud.TypeAfterFind, q.className, results, q.auth, q.restOptions, q.Where)
 	if err != nil {
 		return err
 	}
