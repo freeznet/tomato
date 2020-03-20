@@ -1468,6 +1468,7 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 	}
 
 	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s %s %s`, strings.Join(columns, ","), className, crossjoinPattern, wherePattern, skipPattern, groupPattern, sortPattern, limitPattern)
+	//fmt.Println("qs", qs, values)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
@@ -3044,6 +3045,16 @@ func getFields(query string) (int, []string, error) {
 	}
 	return len(fields), fields, nil
 }
+
+func (p *PostgresAdapter) RawQueryColumnResult(query string, args ...interface{}) (result []string, err error) {
+	rows, err := p.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, _ := rows.Columns()
+	return columns, nil
+}
 func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []types.M, err error) {
 
 	rows, err := p.db.Query(query, args...)
@@ -3052,6 +3063,7 @@ func (p *PostgresAdapter) RawQuery(query string, args ...interface{}) (result []
 	}
 	defer rows.Close()
 	columns, _ := rows.Columns()
+	//fmt.Println(columns)
 	buff := make([]interface{}, len(columns))
 	for rows.Next() {
 		for i := 0; i < len(columns); i++ {

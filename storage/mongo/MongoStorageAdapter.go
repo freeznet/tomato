@@ -535,6 +535,9 @@ func mongoSchemaFromFieldsAndClassNameAndCLP(fields types.M, className string, c
 func (m *MongoAdapter) RawQuery(query string, args ...interface{}) (result []types.M, err error) {
 	return nil, nil
 }
+func (m *MongoAdapter) RawQueryColumnResult(query string, args ...interface{}) (result []string, err error) {
+	return nil, nil
+}
 func (m *MongoAdapter) RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
 	return nil
 }
