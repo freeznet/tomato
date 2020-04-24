@@ -852,6 +852,7 @@ func (p *PostgresAdapter) Find(className string, schema, query, options types.M)
 	}
 
 	qs := fmt.Sprintf(`SELECT %s FROM "%s" %s %s %s %s`, columns, className, wherePattern, sortPattern, limitPattern, skipPattern)
+	//fmt.Println(qs, values)
 	rows, err := p.db.Query(qs, values...)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
@@ -1252,6 +1253,24 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 						}
 						if value["$max"] != nil {
 							columns = append(columns, `MAX("`+value["$max"].(string)+`") AS "`+field+`"`)
+						}
+						if value["$first"] != nil {
+							if reflect.TypeOf(value["$first"]).Kind() == reflect.String {
+								source := value["$first"].(string)
+								columns = append(columns, `first("`+source+`", "createdAt") AS "`+field+`"`)
+							} else if reflect.TypeOf(value["$first"]).Kind() == reflect.Map {
+								source := utils.M(value["$first"])
+								columns = append(columns, `first("`+source["value"].(string)+`", "`+source["time"].(string)+`") AS "`+field+`"`)
+							}
+						}
+						if value["$last"] != nil {
+							if reflect.TypeOf(value["$last"]).Kind() == reflect.String {
+								source := value["$last"].(string)
+								columns = append(columns, `last("`+source+`", "createdAt") AS "`+field+`"`)
+							} else if reflect.TypeOf(value["$last"]).Kind() == reflect.Map {
+								source := utils.M(value["$last"])
+								columns = append(columns, `last("`+source["value"].(string)+`", "`+source["time"].(string)+`") AS "`+field+`"`)
+							}
 						}
 						if value["$avg"] != nil {
 							source := value["$avg"].(string)
