@@ -78,3 +78,59 @@ const arrayContains = `CREATE OR REPLACE FUNCTION "array_contains"(
 AS $function$ 
   SELECT RES.CNT >= 1 FROM (SELECT COUNT(*) as CNT FROM jsonb_array_elements("array") as elt WHERE elt IN (SELECT jsonb_array_elements("values"))) as RES ;
 $function$`
+
+const timeBucketTimeZ = `CREATE OR REPLACE FUNCTION time_bucket_timez (
+  bucket_width interval,
+  ts timestamptz,
+  "offset" interval = '00:00:00'::interval,
+  origin timestamptz = '0001-01-01 00:00:00+00'::timestamptz
+)
+RETURNS TIMESTAMPTZ AS
+$body$
+/*
+millenium = 1000 years
+century = 100 years
+decade = 10 years
+1.5 years aka 1 year 6 months or 18 months
+year aka 12 months
+half year aka 6 months
+quarter aka 3 months
+months = months
+*/
+DECLARE
+  months integer;
+  bucket_months integer;
+  bucket_month integer;
+BEGIN
+	IF EXTRACT(MONTH FROM bucket_width) >= 1 OR EXTRACT(YEAR FROM bucket_width) >= 1 THEN
+    origin := origin + ((0-date_part('timezone_hour', now()))::text || ' hours')::interval;
+      bucket_months :=
+          (EXTRACT(MONTH FROM bucket_width) + -- months
+          (EXTRACT(YEAR FROM bucket_width) * 12)); -- years
+      months := (((EXTRACT(YEAR FROM ts)-EXTRACT(YEAR FROM origin))*12)+EXTRACT(MONTH FROM ts)-1);
+      bucket_month := floor(months/bucket_months)*bucket_months;
+
+      RETURN make_timestamptz(
+          (EXTRACT(YEAR FROM origin)+floor(bucket_month/12))::integer, -- year
+          (bucket_month%12)+1, -- month
+          1, --day
+          0, -- hour
+          0, -- minute
+          0, --second
+          'Z');
+	ELSE
+      CASE
+      WHEN "offset" > '0s'::interval THEN
+	      RETURN public.time_bucket(bucket_width, ts-"offset") + "offset";
+      WHEN origin <> '0001-01-01T00:00:00Z'::timestamptz THEN
+	      RETURN public.time_bucket(bucket_width, ts, origin);
+      ELSE
+	      RETURN public.time_bucket(bucket_width, ts);
+      END CASE;
+    END IF;
+END;
+$body$
+LANGUAGE 'plpgsql'
+IMMUTABLE
+RETURNS NULL ON NULL INPUT
+SECURITY INVOKER;`
