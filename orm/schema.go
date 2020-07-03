@@ -98,13 +98,13 @@ var DefaultColumns = map[string]types.M{
 		"finishedAt": types.M{"type": "Date"},
 	},
 	"_JobSchedule": types.M{
-		"jobName": 		 types.M{"type": "String"},
+		"jobName":       types.M{"type": "String"},
 		"description":   types.M{"type": "String"},
-		"params": 		 types.M{"type": "String"},
-		"startAfter": 	 types.M{"type": "String"},
-		"daysOfWeek": 	 types.M{"type": "Array"},
-		"timeOfDay": 	 types.M{"type": "String"},
-		"lastRun": 		 types.M{"type": "Number"},
+		"params":        types.M{"type": "String"},
+		"startAfter":    types.M{"type": "String"},
+		"daysOfWeek":    types.M{"type": "Array"},
+		"timeOfDay":     types.M{"type": "String"},
+		"lastRun":       types.M{"type": "Number"},
 		"repeatMinutes": types.M{"type": "Number"},
 	},
 	"_Hooks": types.M{
@@ -850,6 +850,11 @@ func getObjectType(obj interface{}) (types.M, error) {
 				if object["base64"] != nil {
 					return types.M{"type": "Bytes"}, nil
 				}
+			case "Polygon":
+				if object["coordinates"] != nil {
+					return types.M{"type": "Polygon"}, nil
+				}
+
 			}
 			// 当 __type 的值不在以上 6 种类型之中时，为无效类型
 			// 当 __type 的值在以上 6 种类型之中，但是不符合详细规则时，为无效的类型
@@ -950,7 +955,8 @@ var validNonRelationOrPointerTypes = map[string]bool{
 	"Array":    true,
 	"GeoPoint": true,
 	"File":     true,
-	"Bytes":     true,
+	"Bytes":    true,
+	"Polygon":  true,
 }
 
 // fieldTypeIsInvalid 检测字段类型是否合法
@@ -1307,6 +1313,9 @@ func dbTypeMatchesObjectType(dbType, objectType types.M) bool {
 	}
 	if dbType == nil && objectType != nil {
 		return false
+	}
+	if utils.S(dbType["type"]) == "Object" && utils.S(objectType["type"]) == "Pointer" {
+		return true
 	}
 	if utils.S(dbType["type"]) != utils.S(objectType["type"]) {
 		return false

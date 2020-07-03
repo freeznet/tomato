@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"reflect"
 	"sort"
 	"strings"
 
@@ -24,12 +25,13 @@ type Query struct {
 	doCount           bool
 	include           [][]string
 	keys              []string
+	excludeKeys       []string
 	redirectKey       string
 	redirectClassName string
 	clientSDK         map[string]string
 }
 
-var alwaysSelectedKeys = []string{"objectId", "createdAt", "updatedAt"}
+var alwaysSelectedKeys = []string{"objectId", "createdAt", "updatedAt", "ACL"}
 
 // NewQuery 组装查询对象
 func NewQuery(
@@ -55,6 +57,7 @@ func NewQuery(
 		doCount:           false,
 		include:           [][]string{},
 		keys:              []string{},
+		excludeKeys:       []string{},
 		redirectKey:       "",
 		redirectClassName: "",
 		clientSDK:         clientSDK,
@@ -122,6 +125,16 @@ func NewQuery(
 			if len(keys) > 0 {
 				query.keys = append(keys, alwaysSelectedKeys...)
 			}
+		case "excludeKeys":
+			exclude := strings.Split(v.(string), ",")
+			for _, v1 := range alwaysSelectedKeys {
+				for k2, v2 := range exclude {
+					if v1 == v2 {
+						exclude = append(exclude[:k2], exclude[k2+1:]...)
+					}
+				}
+			}
+			query.excludeKeys = exclude
 		case "count":
 			query.doCount = true
 		case "distinct":
@@ -190,6 +203,10 @@ func NewQuery(
 func (q *Query) Execute(executeOptions ...types.M) (types.M, error) {
 
 	err := q.BuildRestWhere()
+	if err != nil {
+		return nil, err
+	}
+	err = q.handleExcludeKeys()
 	if err != nil {
 		return nil, err
 	}
@@ -647,6 +664,50 @@ func (q *Query) runCount() error {
 	return nil
 }
 
+// Updates property `this.keys` to contain all keys but the ones unselected.
+func (q *Query) handleExcludeKeys() error {
+	if q.excludeKeys == nil || reflect.DeepEqual(q.excludeKeys, []string{}) {
+		return nil
+	}
+
+	if !reflect.DeepEqual(q.keys, []string{}) {
+		keys := q.keys
+		for _, v := range q.excludeKeys {
+			for k1, v1 := range keys {
+				if v == v1 {
+					keys = append(keys[:k1], keys[k1+1:]...)
+				}
+			}
+		}
+		q.keys = keys
+		return nil
+	}
+
+	schemaController := orm.TomatoDBController.LoadSchema(nil)
+	schema, err := schemaController.GetOneSchema(q.className, false, nil)
+	if err != nil {
+		return err
+	}
+	keysTemp := []string{}
+	schemaFields := schema["fields"]
+	if schemaFields == nil {
+		schemaFields = types.M{}
+	}
+	for k, _ := range schemaFields.(types.M) {
+		temp := true
+		for _, v1 := range q.excludeKeys {
+			if k == v1 {
+				temp = false
+			}
+		}
+		if temp {
+			keysTemp = append(keysTemp, k)
+		}
+	}
+	q.keys = keysTemp
+	return nil
+}
+
 // handleInclude 展开 include 对应的内容
 func (q *Query) handleInclude() error {
 	if len(q.include) == 0 {
@@ -676,7 +737,7 @@ func (q *Query) runAfterFindTrigger() error {
 	if hasAfterFindHook == false {
 		return nil
 	}
-	results, err := maybeRunAfterFindTrigger(cloud.TypeAfterFind, q.className, results, q.auth)
+	results, err := maybeRunAfterFindTrigger(cloud.TypeAfterFind, q.className, results, q.auth, q.restOptions, q.Where)
 	if err != nil {
 		return err
 	}
@@ -771,7 +832,7 @@ func includePath(auth *Auth, response types.M, path []string, restOptions types.
 			return err
 		}
 		if utils.HasResults(includeResponse) == false {
-			return nil
+			continue
 		}
 
 		// 组装查询到的对象

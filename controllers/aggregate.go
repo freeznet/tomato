@@ -2,13 +2,54 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/freeznet/tomato/errs"
 	"github.com/freeznet/tomato/rest"
 	"github.com/freeznet/tomato/types"
 	"github.com/freeznet/tomato/utils"
-
 )
+
+var baseKeys = []string{"where", "distinct", "pipeline"}
+var pipelineKeys = []string{"addFields",
+	"bucket",
+	"bucketAuto",
+	"collStats",
+	"count",
+	"currentOp",
+	"facet",
+	"geoNear",
+	"graphLookup",
+	"group",
+	"indexStats",
+	"limit",
+	"listLocalSessions",
+	"listSessions",
+	"lookup",
+	"match",
+	"out",
+	"project",
+	"redact",
+	"replaceRoot",
+	"sample",
+	"skip",
+	"sort",
+	"sortByCount",
+	"unwind"}
+
+var allowedKeys map[string]int8
+
+func init() {
+	allowedKeys = make(map[string]int8, len(baseKeys)+len(pipelineKeys))
+	for _, v := range baseKeys {
+		allowedKeys[v] = 1
+	}
+	for _, v := range pipelineKeys {
+		allowedKeys[v] = 1
+	}
+}
 
 type AggregateController struct {
 	ClassesController
@@ -28,63 +69,6 @@ func (c *AggregateController) HandleFind() {
 		c.ClassName = c.Ctx.Input.Param(":className")
 	}
 
-	allowKeys := map[string]bool{
-		"where":                   true,
-		"distinct":                   true,
-		"pipeline":                   true,
-		"project":                   true,
-		"match":                   true,
-		"limit":                   true,
-		"skip":                    true,
-		"redact":                   true,
-		"unwind":                   true,
-		"group":                   true,
-		"sort":                   true,
-		"geoNear":                   true,
-		"lookup":                   true,
-		"out":                   true,
-		"indexStats":                   true,
-		"facet":                   true,
-		"bucket":                   true,
-		"bucketAuto":                   true,
-		"sortByCount":                   true,
-		"addFields":                   true,
-		"replaceRoot":                   true,
-		"count":                   true,
-		"graphLookup":                   true,
-	}
-	for k := range c.Query {
-		if allowKeys[k] == false {
-			c.HandleError(errs.E(errs.InvalidQuery, "Invalid parameter for query: "+k), 0)
-			return
-		}
-	}
-
-	pipeline := types.M{}
-
-	if c.JSONBody != nil && c.JSONBody["pipeline"] != nil {
-		pipeline = utils.M(c.JSONBody["pipeline"])
-	} else {
-		for k := range allowKeys {
-			if k == "group" && c.Query[k] != "" {
-				groupbody := types.M{}
-				err := json.Unmarshal([]byte(c.Query["group"]), &groupbody)
-				if err != nil {
-					c.HandleError(errs.E(errs.InvalidJSON, "group should be valid json"), 0)
-					return
-				}
-				pipeline[k] = groupbody
-				continue
-			}
-			if c.Query[k] != "" {
-				pipeline[k] = c.Query[k]
-			} else if c.JSONBody != nil && c.JSONBody[k] != nil {
-				pipeline[k] = utils.M(c.JSONBody[k])
-			}
-
-		}
-	}
-
 	// 获取查询参数，并组装
 	options := types.M{}
 
@@ -93,7 +77,11 @@ func (c *AggregateController) HandleFind() {
 	} else if c.JSONBody != nil && c.JSONBody["distinct"] != nil {
 		options["distinct"] = c.JSONBody["distinct"]
 	}
-
+	pipeline, err := getPipeline(c.JSONBody)
+	if err != nil {
+		c.HandleError(err, 0)
+		return
+	}
 	options["pipeline"] = pipeline
 
 	where := types.M{}
@@ -105,9 +93,13 @@ func (c *AggregateController) HandleFind() {
 		}
 	} else if c.JSONBody != nil && c.JSONBody["where"] != nil {
 		where = utils.M(c.JSONBody["where"])
+	} else {
+		for _, stage := range pipeline {
+			if stage["$match"] != nil {
+				where = utils.M(stage["$match"])
+			}
+		}
 	}
-
-	//fmt.Println(options)
 
 	response, err := rest.Find(c.Auth, c.ClassName, where, options, c.Info.ClientSDK)
 	if err != nil {
@@ -126,4 +118,62 @@ func (c *AggregateController) HandleFind() {
 
 	c.Data["json"] = response
 	c.ServeJSON()
+}
+
+func getPipeline(body types.M) ([]types.M, error) {
+	var pipeline = body
+	if v, has := body["pipeline"]; has {
+		pipeline = utils.M(v)
+	}
+	var stages = []types.M{}
+	var result = []types.M{}
+
+	if reflect.TypeOf(pipeline).Kind() != reflect.Slice {
+		for k, v := range pipeline {
+			stages = append(stages, types.M{k: v})
+		}
+	}
+
+	for _, stage := range stages {
+		var keys = []string{}
+		for k := range stage {
+			keys = append(keys, k)
+		}
+		if len(stage) != 1 {
+			err := fmt.Sprintf("Pipeline stages should only have one key found %s", strings.Join(keys, ", "))
+			return nil, errs.E(errs.InvalidJSON, err)
+		}
+		r, err := transformStage(keys[0], stage)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, r)
+	}
+	return result, nil
+}
+
+func transformStage(stageName string, stage types.M) (types.M, error) {
+	if _, has := allowedKeys[stageName]; !has {
+		return nil, errs.E(errs.InvalidQuery, fmt.Sprintf("Invalid parameter for query: %s", stageName))
+	}
+	var stageValue = stage[stageName]
+	var key = fmt.Sprintf("$%s", stageName)
+	var result = types.M{}
+	if stageName == "group" {
+		if m := utils.M(stageValue); m != nil {
+			if _, has := m["_id"]; has {
+				return nil, errs.E(errs.InvalidQuery, "Invalid parameter for query: group. Please use objectId instead of _id")
+			}
+			if _, has := m["objectId"]; !has {
+				return nil, errs.E(errs.InvalidQuery, "Invalid parameter for query: group. objectId is required")
+			}
+			m["_id"] = m["objectId"]
+			delete(m, "objectId")
+			result[key] = m
+			return result, nil
+		}
+	} else {
+		result[key] = stageValue
+	}
+	return result, nil
 }

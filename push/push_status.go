@@ -66,7 +66,7 @@ func (p *pushStatus) setInitial(body, where, options types.M) error {
 	object := types.M{
 		"objectId":  p.objectID,
 		"createdAt": utils.TimetoString(now),
-		"pushTime":  types.M{"__type": "Date", "iso": utils.TimetoString(pushTime)},
+		"pushTime":  utils.TimetoString(pushTime),
 		"query":     string(whereString),
 		"payload":   string(payloadString),
 		"source":    utils.S(options["source"]),

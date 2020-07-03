@@ -22,8 +22,8 @@ type Config struct {
 	DatabaseURI                      string   // 数据库地址
 	AppID                            string   // 必填
 	MasterKey                        string   // 必填
-	MasterKeyIps					 []string // 选填，允许使用masterKey的IP列表，默认为[]
-	ReadOnlyMasterKey				 string   // 只读MasterKey
+	MasterKeyIps                     []string // 选填，允许使用masterKey的IP列表，默认为[]
+	ReadOnlyMasterKey                string   // 只读MasterKey
 	ClientKey                        string   // 选填
 	JavaScriptKey                    string   // 选填
 	DotNetKey                        string   // 选填
@@ -51,7 +51,7 @@ type Config struct {
 	TencentAppID                     string   // 腾讯云存储 AppID ，仅在 FileAdapter=Tencent 时需要配置
 	TencentSecretID                  string   // 腾讯云存储 SecretID ，仅在 FileAdapter=Tencent 时需要配置
 	TencentSecretKey                 string   // 腾讯云存储 SecretKey ，仅在 FileAdapter=Tencent 时需要配置
-	PushAdapter                      string   // 推送模块，可选：FCM，默认为 tomato
+	PushAdapter                      string   // 推送模块，可选：FCM, UMeng，默认为 tomato
 	PushChannel                      string   // 推送通道
 	PushBatchSize                    int      // 批量推送的大小
 	ScheduledPush                    bool     // 是否有推送调度器
@@ -66,7 +66,7 @@ type Config struct {
 	RedisAddress                     string   // Redis 地址， CacheAdapter=Redis 时必填
 	RedisPassword                    string   // Redis 密码，选填
 	SchemaCacheTTL                   int      // Schema 缓存有效期，单位为秒。取值： -1 表示永不过期，0 表示使用 CacheAdapter 自身的有效期，或者大于 0 ，默认为 5 秒
-	CacheMaxSize					 int	  // LRUCache最大长度
+	CacheMaxSize                     int      // LRUCache最大长度
 	EnableSingleSchemaCache          bool     // 是否允许缓存唯一一份 SchemaCache ，默认为 false 不允许
 	WebhookKey                       string   // 用于云代码鉴权
 	EnableAccountLockout             bool     // 是否启用账户锁定规则，默认为 false 不启用
@@ -85,18 +85,22 @@ type Config struct {
 	InfluxDBPassword                 string   // InfluxDB 密码，仅在 AnalyticsAdapter=InfluxDB 时需要配置
 	InfluxDBDatabaseName             string   // InfluxDB 数据库，仅在 AnalyticsAdapter=InfluxDB 时需要配置
 	InvalidLink                      string   // 自定义页面地址，无效链接页面
-	InvalidVerificationLink string            // 自定义页面地址，无效验证链接页面
-	LinkSendSuccess         string            // 自定义页面地址，发送成功页面
-	LinkSendFail            string            // 自定义页面地址，发送失败页面
-	VerifyEmailSuccess      string            // 自定义页面地址，验证邮箱成功页面
-	ChoosePassword          string            // 自定义页面地址，修改密码页面
-	PasswordResetSuccess    string            // 自定义页面地址，密码重置成功页面
-	ParseFrameURL           string            // 自定义页面地址，用于呈现验证 Email 页面和密码重置页面
-	FCMServerKey            string            // FCM Server Key
-	HDFSNameNode            string            // HDFS Name Node 地址
-	HDFSUser                string            // HDFS 用户名
-	HDFSRoot                string            // HDFS 存储根目录
-	PgMaxConnections                int            // Postgres Max Connections
+	InvalidVerificationLink          string   // 自定义页面地址，无效验证链接页面
+	LinkSendSuccess                  string   // 自定义页面地址，发送成功页面
+	LinkSendFail                     string   // 自定义页面地址，发送失败页面
+	VerifyEmailSuccess               string   // 自定义页面地址，验证邮箱成功页面
+	ChoosePassword                   string   // 自定义页面地址，修改密码页面
+	PasswordResetSuccess             string   // 自定义页面地址，密码重置成功页面
+	ParseFrameURL                    string   // 自定义页面地址，用于呈现验证 Email 页面和密码重置页面
+	FCMServerKey                     string   // FCM Server Key
+	UMengAndroidAppKey               string   // 友盟推送 android app key
+	UMengIOSAppKey                   string   // 友盟推送 ios app key
+	UMengAndroidAppMasterSecret      string   // 友盟推送 android app master secret
+	UMengIOSAppMasterSecret          string   // 友盟推送 ios app master secret
+	HDFSNameNode                     string   // HDFS Name Node 地址
+	HDFSUser                         string   // HDFS 用户名
+	HDFSRoot                         string   // HDFS 存储根目录
+	PgMaxConnections                 int      // Postgres Max Connections
 }
 
 var (
@@ -210,6 +214,11 @@ func parseConfig() {
 	TConfig.HDFSUser = beego.AppConfig.String("HDFSUser")
 	TConfig.HDFSRoot = beego.AppConfig.String("HDFSRoot")
 
+	TConfig.UMengAndroidAppKey = beego.AppConfig.String("UMengAndroidAppKey")
+	TConfig.UMengAndroidAppMasterSecret = beego.AppConfig.String("UMengAndroidAppMasterSecret")
+	TConfig.UMengIOSAppKey = beego.AppConfig.String("UMengIOSAppKey")
+	TConfig.UMengIOSAppMasterSecret = beego.AppConfig.String("UMengIOSAppMasterSecret")
+
 	if TConfig.DatabaseType == "PostgreSQL" {
 		TConfig.PgMaxConnections = beego.AppConfig.DefaultInt("PgMaxConnections", 100)
 	}
@@ -313,7 +322,7 @@ func validateMailConfiguration() {
 }
 
 // 检查masterKeyIps中的ip地址格式是否正确
-func validateMasterKeyIps()  {
+func validateMasterKeyIps() {
 	for _, ip := range TConfig.MasterKeyIps {
 		if address := net.ParseIP(ip); address == nil {
 			log.Fatalln(fmt.Sprintf("Invalid ip in masterKeyIps: %s", ip))

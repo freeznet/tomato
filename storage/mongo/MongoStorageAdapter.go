@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -307,7 +308,7 @@ func (m *MongoAdapter) Find(className string, schema, query, options types.M) ([
 	if err != nil {
 		return nil, err
 	}
-	if keys, ok :=  options["sort"].(map[string]interface{}); ok {
+	if keys, ok := options["sort"].(map[string]interface{}); ok {
 		var mongoSort []string
 		for key, val := range keys {
 			var mongoKey string
@@ -328,8 +329,13 @@ func (m *MongoAdapter) Find(className string, schema, query, options types.M) ([
 		if keys, ok := options["keys"].([]string); ok {
 			mongoKeys := types.M{}
 			for _, key := range keys {
-				mongoKey := m.transform.transformKey(className, key, schema)
-				mongoKeys[mongoKey] = 1
+				if key == "ACL" {
+					mongoKeys["_rperm"] = 1
+					mongoKeys["_wperm"] = 1
+				} else {
+					mongoKey := m.transform.transformKey(className, key, schema)
+					mongoKeys[mongoKey] = 1
+				}
 			}
 			options["keys"] = mongoKeys
 		} else {
@@ -382,12 +388,29 @@ func (m *MongoAdapter) Count(className string, schema, query types.M) (int, erro
 	return c, nil
 }
 
-func (p *MongoAdapter) Distinct(className, fieldName string, schema, query types.M) ([]types.M, error) {
-	return []types.M{}, nil
+func (m *MongoAdapter) Distinct(className, fieldName string, schema, query types.M) ([]types.M, error) {
+	schema = convertParseSchemaToMongoSchema(schema)
+	coll := m.adaptiveCollection(className)
+	mongoWhere, err := m.transform.transformWhere(className, query, schema)
+	if err != nil {
+		return nil, err
+	}
+	ret := coll.distinct(fieldName, mongoWhere)
+	return ret, nil
 }
 
-func (p *MongoAdapter) Aggregate(className string, schema, query, options types.M) ([]types.M, error){
-	return []types.M{}, nil
+func (m *MongoAdapter) Aggregate(className string, schema, query, options types.M) ([]types.M, error) {
+	schema = convertParseSchemaToMongoSchema(schema)
+	coll := m.adaptiveCollection(className)
+	pipeline := options["pipeline"]
+	ret := coll.aggregate(pipeline, options)
+	for _, v := range ret {
+		if id, has := v["_id"]; has {
+			v["objectId"] = id
+			delete(v, "_id")
+		}
+	}
+	return ret, nil
 }
 
 // EnsureUniqueness 创建索引
@@ -421,6 +444,19 @@ func (m *MongoAdapter) CreateIndex(className string, indexRequest []string) erro
 	}
 	err := coll.collection.EnsureIndex(index)
 	return err
+}
+
+func (m *MongoAdapter) CreateIndexsIfNeeded(className, fieldName string, fieldType types.M) error {
+	if fieldType != nil && utils.S(fieldType["type"]) == "Polygon" {
+		index := []string{fmt.Sprintf("$2dsphere:%s", fieldName)}
+		return m.CreateIndex(className, index)
+	}
+	return nil
+}
+
+func (m *MongoAdapter) GetIndexs(className string) (indexes []mgo.Index, err error) {
+	coll := m.adaptiveCollection(className)
+	return coll.collection.Indexes()
 }
 
 // HandleShutdown 关闭数据库
@@ -496,9 +532,12 @@ func mongoSchemaFromFieldsAndClassNameAndCLP(fields types.M, className string, c
 
 	return mongoObject
 }
-func (m *MongoAdapter)RawQuery(query string, args ...interface{}) (result []types.M, err error) {
-	return nil,nil
+func (m *MongoAdapter) RawQuery(query string, args ...interface{}) (result []types.M, err error) {
+	return nil, nil
 }
-func (m *MongoAdapter)RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
+func (m *MongoAdapter) RawQueryColumnResult(query string, args ...interface{}) (result []string, err error) {
+	return nil, nil
+}
+func (m *MongoAdapter) RawBatchInsert(className string, objects [][]interface{}, fields []string) error {
 	return nil
 }

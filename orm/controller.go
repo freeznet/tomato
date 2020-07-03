@@ -160,7 +160,7 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 	}
 
 	// 组装 acl 查询条件，查找可被当前用户访问的对象
-	if isMaster == false || options["distinct"] != nil || options["pipeline"] != nil{
+	if isMaster == false || options["distinct"] != nil || options["pipeline"] != nil {
 		query = addReadACL(query, aclGroup)
 	}
 
@@ -196,7 +196,7 @@ func (d *DBController) Find(className string, query, options types.M) (types.S, 
 			results = append(results, object[distinct])
 		}
 		return results, nil
-	}else if options["pipeline"] != nil {
+	} else if options["pipeline"] != nil {
 		if classExists == false {
 			return types.S{}, nil
 		}
@@ -369,7 +369,7 @@ func (d *DBController) Update(className string, query, update, options types.M, 
 		return nil, err
 	}
 
-	sch, err := schema.GetOneSchema(className, false, nil)
+	sch, err := schema.GetOneSchema(className, true, nil)
 	if err != nil {
 		return nil, err
 	}

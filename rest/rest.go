@@ -22,7 +22,7 @@ func Find(auth *Auth, className string, where, options types.M, clientSDK map[st
 	if err != nil {
 		return nil, err
 	}
-	w, o, err := maybeRunQueryTrigger(cloud.TypeBeforeFind, className, where, options, auth, false)
+	w, o, err := maybeRunQueryTrigger(cloud.TypeBeforeFind, className, where, options, auth, false, isRequestAggregate(options), isRequestDistinct(options))
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func Get(auth *Auth, className, objectID string, options types.M, clientSDK map[
 	if err != nil {
 		return nil, err
 	}
-	w, o, err := maybeRunQueryTrigger(cloud.TypeBeforeFind, className, restWhere, options, auth, true)
+	w, o, err := maybeRunQueryTrigger(cloud.TypeBeforeFind, className, restWhere, options, auth, true, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -201,4 +201,18 @@ func checkTriggers(className string, triggerTypes []string) bool {
 
 func checkLiveQuery(className string) bool {
 	return livequery.TLiveQuery != nil && livequery.TLiveQuery.HasLiveQuery(className)
+}
+
+func isRequestAggregate(options types.M) bool {
+	if _, has := options["aggregate"]; has {
+		return has
+	}
+	return false
+}
+
+func isRequestDistinct(options types.M) bool {
+	if _, has := options["distinct"]; has {
+		return has
+	}
+	return false
 }
