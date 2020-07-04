@@ -1173,7 +1173,7 @@ func (p *PostgresAdapter) Aggregate(className string, schema, query, options typ
 									}
 									return append(slice, s)
 								}(groupByFields, fmt.Sprintf(`"%s"`, k))
-								if strings.Contains(bucket_width, "months") ||  strings.Contains(bucket_width, "quarter")  ||  strings.Contains(bucket_width, "year")  ||  strings.Contains(bucket_width, "decade") ||  strings.Contains(bucket_width, "century") {
+								if strings.Contains(bucket_width, "month") || strings.Contains(bucket_width, "quarter") || strings.Contains(bucket_width, "year") || strings.Contains(bucket_width, "decade") || strings.Contains(bucket_width, "century") {
 									columns = append(columns, fmt.Sprintf(`time_bucket_timez('%s', "%s") AS "%s"`, bucket_width, time, k))
 								} else {
 									columns = append(columns, fmt.Sprintf(`time_bucket('%s', "%s") AS "%s"`, bucket_width, time, k))
