@@ -160,6 +160,8 @@ func getPipeline(body types.M) ([]types.M, error) {
 				pipeline = append(pipeline, utils.M(vv))
 			}
 		}
+	} else {
+		pipeline = []types.M{body}
 	}
 
 	var result = []types.M{}
