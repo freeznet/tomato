@@ -120,21 +120,51 @@ func (c *AggregateController) HandleFind() {
 	c.ServeJSON()
 }
 
+/* Builds a pipeline from the body. Originally the body could be passed as a single object,
+ * and now we support many options
+ *
+ * Array
+ *
+ * body: [{
+ *   group: { objectId: '$name' },
+ * }]
+ *
+ * Object
+ *
+ * body: {
+ *   group: { objectId: '$name' },
+ * }
+ *
+ *
+ * Pipeline Operator with an Array or an Object
+ *
+ * body: {
+ *   pipeline: {
+ *     group: { objectId: '$name' },
+ *   }
+ * }
+ *
+ */
 func getPipeline(body types.M) ([]types.M, error) {
-	var pipeline = body
-	if v, has := body["pipeline"]; has {
-		pipeline = utils.M(v)
-	}
-	var stages = []types.M{}
-	var result = []types.M{}
+	var pipeline = []types.M{}
 
-	if reflect.TypeOf(pipeline).Kind() != reflect.Slice {
-		for k, v := range pipeline {
-			stages = append(stages, types.M{k: v})
+	if v, has := body["pipeline"]; has {
+		if reflect.TypeOf(v).Kind() != reflect.Slice {
+			tmp := utils.M(v)
+			for k, vv := range tmp {
+				pipeline = append(pipeline, types.M{k: vv})
+			}
+		} else {
+			tmp := utils.A(v)
+			for _, vv := range tmp {
+				pipeline = append(pipeline, utils.M(vv))
+			}
 		}
 	}
 
-	for _, stage := range stages {
+	var result = []types.M{}
+
+	for _, stage := range pipeline {
 		var keys = []string{}
 		for k := range stage {
 			keys = append(keys, k)
@@ -149,6 +179,7 @@ func getPipeline(body types.M) ([]types.M, error) {
 		}
 		result = append(result, r)
 	}
+
 	return result, nil
 }
 
